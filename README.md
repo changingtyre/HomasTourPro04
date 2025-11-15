@@ -14,6 +14,28 @@ Et komplet system til at holde styr på resultaterne fra jeres cykelbrætspil ge
 - ✅ **Automatisk beregning** af World Tour Points (UCI 1997)
 - ✅ **Samlet stilling** for både ryttere og hold
 - ✅ **Data gemmes lokalt** i din browser (localStorage)
+- ✅ **Backup & Gendan** - Eksporter/importer data som JSON filer
+- ✅ **Flyt data** mellem computere nemt
+
+## Installation
+
+### Download fra GitHub:
+1. Gå til GitHub repository
+2. Klik på den grønne **"Code"** knap
+3. Vælg **"Download ZIP"**
+4. Pak ZIP-filen ud på din computer
+5. Find mappen og åbn `index.html` i din browser
+
+**Alternativt med git:**
+```bash
+git clone [repository URL]
+cd HomasTourPro04
+```
+
+### Start systemet:
+- Dobbeltklik på `index.html` filen
+- **ELLER** højreklik → "Åbn med" → Chrome/Firefox/Safari/Edge
+- Systemet kører nu lokalt i din browser!
 
 ## Sådan bruger du systemet
 
@@ -78,11 +100,45 @@ Systemet bruger det officielle UCI point system fra 1997:
 ### Øvrige World Cup Løb
 40, 32, 26, 22, 18, 14, 10, 6, 2 point
 
-## Data og backup
+## Backup og Data Sikkerhed 💾
 
-- Alt data gemmes automatisk i browserens localStorage
-- For at lave backup: Brug browser dev tools (F12) → Application/Storage → Local Storage → kopier data
-- For at nulstille: Slet localStorage data i dev tools
+Systemet gemmer automatisk alt data i browserens localStorage, MEN det er vigtigt at lave regelmæssige backups!
+
+### Sådan laver du backup:
+
+1. **Klik på "💾 Backup" knappen** i øverste højre hjørne
+2. En JSON fil downloades automatisk til din computer
+3. Filen hedder: `cykel-tour-backup-YYYY-MM-DD.json`
+4. Gem denne fil et sikkert sted (Dropbox, USB-nøgle, etc.)
+
+### Sådan gendanner du fra backup:
+
+1. **Klik på "📥 Gendan" knappen** i øverste højre hjørne
+2. Vælg en af to muligheder:
+   - **Erstat Alt Data**: Sletter nuværende data og erstatter med backup
+   - **Tilføj Data**: Behold eksisterende data og tilføj fra backup
+3. Vælg din backup-fil (.json)
+4. Data gendannes og siden genindlæses automatisk
+
+### Vigtigt at vide:
+
+⚠️ **Lav backup regelmæssigt!** Data kan mistes hvis:
+- Du sletter browserens cookies/data
+- Browseren crasher eller opdateres forkert
+- Du skifter computer eller browser
+
+✅ **Anbefalinger:**
+- Lav backup efter hver sæson
+- Lav backup før store ændringer
+- Gem backup-filer flere steder (computer + cloud)
+- Del backup-filer mellem spillere for ekstra sikkerhed
+
+### Flyt data mellem computere:
+
+1. Lav backup på Computer A (💾 Backup)
+2. Gem JSON filen i Dropbox/Google Drive/USB
+3. Download filen på Computer B
+4. Import på Computer B (📥 Gendan)
 
 ## Tips
 

@@ -10,12 +10,21 @@
     <div id="app">
         <header>
             <h1>🚴 Cykel Tour Manager</h1>
-            <div id="current-game-info"></div>
+            <div class="header-right">
+                <div id="current-game-info"></div>
+                <div class="backup-buttons">
+                    <button class="btn-icon" onclick="UI.exportData()" title="Eksporter backup">💾 Backup</button>
+                    <button class="btn-icon" onclick="UI.showImportDialog()" title="Importer backup">📥 Gendan</button>
+                </div>
+            </div>
         </header>
 
         <main id="main-content">
             <!-- Content will be dynamically loaded here -->
         </main>
+
+        <!-- Hidden file input for import -->
+        <input type="file" id="import-file-input" accept=".json" style="display: none;" onchange="UI.handleImport(event)">
     </div>
 
     <script src="data.js"></script>

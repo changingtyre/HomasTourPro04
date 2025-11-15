@@ -477,5 +477,110 @@ const DataManager = {
             });
         });
         return riders;
+    },
+
+    // Export all data as JSON file
+    exportData() {
+        const data = this.getData();
+        const jsonString = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `cykel-tour-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        return true;
+    },
+
+    // Import data from JSON file
+    importData(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+
+                    // Validate data structure
+                    if (!importedData.games || !Array.isArray(importedData.games)) {
+                        reject(new Error('Ugyldig data format'));
+                        return;
+                    }
+
+                    // Ask for confirmation before overwriting
+                    const currentData = this.getData();
+                    if (currentData.games.length > 0) {
+                        const confirm = window.confirm(
+                            'ADVARSEL: Dette vil overskrive alle eksisterende data!\n\n' +
+                            `Nuværende data: ${currentData.games.length} spil\n` +
+                            `Import data: ${importedData.games.length} spil\n\n` +
+                            'Fortsæt?'
+                        );
+
+                        if (!confirm) {
+                            reject(new Error('Import annulleret af bruger'));
+                            return;
+                        }
+                    }
+
+                    // Save imported data
+                    this.saveData(importedData);
+                    resolve(importedData);
+                } catch (error) {
+                    reject(new Error('Kunne ikke læse filen: ' + error.message));
+                }
+            };
+
+            reader.onerror = () => {
+                reject(new Error('Fejl ved læsning af fil'));
+            };
+
+            reader.readAsText(file);
+        });
+    },
+
+    // Merge imported data with existing data (instead of overwriting)
+    mergeImportData(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+
+                    // Validate data structure
+                    if (!importedData.games || !Array.isArray(importedData.games)) {
+                        reject(new Error('Ugyldig data format'));
+                        return;
+                    }
+
+                    const currentData = this.getData();
+
+                    // Merge games (add new ones, skip duplicates by ID)
+                    importedData.games.forEach(importedGame => {
+                        const exists = currentData.games.find(g => g.id === importedGame.id);
+                        if (!exists) {
+                            currentData.games.push(importedGame);
+                        }
+                    });
+
+                    this.saveData(currentData);
+                    resolve(currentData);
+                } catch (error) {
+                    reject(new Error('Kunne ikke læse filen: ' + error.message));
+                }
+            };
+
+            reader.onerror = () => {
+                reject(new Error('Fejl ved læsning af fil'));
+            };
+
+            reader.readAsText(file);
+        });
     }
 };

@@ -884,5 +884,110 @@ const UI = {
         } else {
             this.currentGameInfo.innerHTML = '';
         }
+    },
+
+    // Export data (download backup)
+    exportData() {
+        try {
+            DataManager.exportData();
+            this.showNotification('✅ Backup gemt! Filen er downloadet til din computer.', 'success');
+        } catch (error) {
+            alert('Fejl ved eksport: ' + error.message);
+        }
+    },
+
+    // Show import dialog
+    showImportDialog() {
+        const options = `
+            <div style="margin-bottom: 20px;">
+                <p style="margin-bottom: 15px;">Vælg hvordan du vil importere data:</p>
+                <button class="btn btn-danger" onclick="UI.triggerImport('replace')" style="width: 100%; margin-bottom: 10px;">
+                    🔄 Erstat Alt Data
+                    <br><small style="opacity: 0.8;">Sletter nuværende data og erstatter med backup</small>
+                </button>
+                <button class="btn btn-primary" onclick="UI.triggerImport('merge')" style="width: 100%;">
+                    ➕ Tilføj Data
+                    <br><small style="opacity: 0.8;">Behold eksisterende data og tilføj fra backup</small>
+                </button>
+            </div>
+            <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+        `;
+
+        this.createModal('Importer Backup', options);
+    },
+
+    // Trigger file input
+    triggerImport(mode) {
+        this.closeModal();
+        const fileInput = document.getElementById('import-file-input');
+        fileInput.dataset.mode = mode;
+        fileInput.click();
+    },
+
+    // Handle import
+    async handleImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const mode = event.target.dataset.mode || 'replace';
+
+        try {
+            if (mode === 'replace') {
+                await DataManager.importData(file);
+                this.showNotification('✅ Data importeret! Siden genindlæses...', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else if (mode === 'merge') {
+                await DataManager.mergeImportData(file);
+                this.showNotification('✅ Data tilføjet! Siden genindlæses...', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            }
+        } catch (error) {
+            alert('Fejl ved import: ' + error.message);
+        }
+
+        // Reset file input
+        event.target.value = '';
+    },
+
+    // Show notification
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#27ae60' : type === 'error' ? '#e74c3c' : '#3498db'};
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        `;
+        notification.textContent = message;
+
+        // Add animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        document.body.appendChild(notification);
+
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideIn 0.3s ease reverse';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     }
 };
