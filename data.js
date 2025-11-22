@@ -109,7 +109,13 @@ const DataManager = {
         const data = this.getData();
         console.log('Current data:', data);
 
-        const game = this.getCurrentGame();
+        if (!data.currentGameId) {
+            console.error('No current game ID!');
+            return null;
+        }
+
+        // Find game directly in the data object (not via getCurrentGame)
+        const game = data.games.find(g => g.id === data.currentGameId);
         console.log('Current game:', game);
 
         if (!game) {
@@ -125,6 +131,7 @@ const DataManager = {
 
         game.players.push(player);
         console.log('Game after adding player:', game);
+        console.log('Data object games:', data.games);
 
         this.saveData(data);
         console.log('Data saved successfully');
@@ -135,7 +142,9 @@ const DataManager = {
     // Add team to current game
     addTeam(teamName, playerId) {
         const data = this.getData();
-        const game = this.getCurrentGame();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
         if (!game) return null;
 
         const team = {
@@ -161,7 +170,9 @@ const DataManager = {
     // Add rider to team
     addRider(riderName, teamId) {
         const data = this.getData();
-        const game = this.getCurrentGame();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
         if (!game) return null;
 
         const team = game.teams.find(t => t.id === teamId);
@@ -193,7 +204,13 @@ const DataManager = {
         const data = this.getData();
         console.log('Current data:', data);
 
-        const game = this.getCurrentGame();
+        if (!data.currentGameId) {
+            console.error('No current game ID!');
+            return null;
+        }
+
+        // Find game directly in the data object
+        const game = data.games.find(g => g.id === data.currentGameId);
         console.log('Current game:', game);
 
         if (!game) {
@@ -218,6 +235,7 @@ const DataManager = {
 
         game.races.push(race);
         console.log('Game after adding race:', game);
+        console.log('Data object games:', data.games);
 
         this.saveData(data);
         console.log('Data saved successfully. Race ID:', race.id);
