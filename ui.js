@@ -84,7 +84,7 @@ const UI = {
         html += '<button class="nav-tab active" onclick="UI.showTab(\'overview\', event)">Overblik</button>';
         html += '<button class="nav-tab" onclick="UI.showTab(\'players\', event)">Spillere & Hold</button>';
         html += '<button class="nav-tab" onclick="UI.showTab(\'races\', event)">Løb</button>';
-        html += '<button class="nav-tab" onclick="UI.showTab(\'standings\', event)">Stilling</button>';
+        html += '<button class="nav-tab" onclick="UI.showTab(\'standings\', event)">Resultater</button>';
         html += '</div>';
         html += '<div id="tab-content"></div>';
 
@@ -161,12 +161,30 @@ const UI = {
             html += '<h2>Seneste Løb</h2>';
             const recentRaces = game.races.slice(-5).reverse();
             html += '<table>';
-            html += '<tr><th>Løb</th><th>Type</th><th>Format</th><th>Dato</th></tr>';
+            html += '<tr><th>Løb</th><th>Vinder</th><th>Dato</th></tr>';
             recentRaces.forEach(race => {
+                // Determine winner
+                let winner = '-';
+                if (race.raceFormat === 'one-day') {
+                    const winResult = race.results.find(r => r.position === 1);
+                    if (winResult) {
+                        const winnerRider = DataManager.getRiderById(winResult.riderId);
+                        winner = winnerRider ? winnerRider.name : 'Ukendt';
+                    }
+                } else {
+                    // Stage race - check general classification
+                    if (race.generalClassification && race.generalClassification.length > 0) {
+                        const gcWinner = race.generalClassification.find(gc => gc.position === 1);
+                        if (gcWinner) {
+                            const winnerRider = DataManager.getRiderById(gcWinner.riderId);
+                            winner = winnerRider ? winnerRider.name : 'Ukendt';
+                        }
+                    }
+                }
+
                 html += '<tr>';
                 html += `<td><a href="#" onclick="UI.viewRace('${race.id}'); return false;">${race.name}</a></td>`;
-                html += `<td>${PointsCalculator.getRaceTypeName(race.type)}</td>`;
-                html += `<td>${race.raceFormat === 'one-day' ? 'Endagsløb' : 'Etapeløb'}</td>`;
+                html += `<td>${winner}</td>`;
                 html += `<td>${new Date(race.createdDate).toLocaleDateString('da-DK')}</td>`;
                 html += '</tr>';
             });
@@ -251,12 +269,30 @@ const UI = {
             html += '<p>Ingen løb endnu. Opret dit første løb!</p>';
         } else {
             html += '<table>';
-            html += '<tr><th>Løb</th><th>Type</th><th>Format</th><th>Dato</th><th>Handling</th></tr>';
+            html += '<tr><th>Løb</th><th>Vinder</th><th>Dato</th><th>Handling</th></tr>';
             game.races.forEach(race => {
+                // Determine winner
+                let winner = '-';
+                if (race.raceFormat === 'one-day') {
+                    const winResult = race.results.find(r => r.position === 1);
+                    if (winResult) {
+                        const winnerRider = DataManager.getRiderById(winResult.riderId);
+                        winner = winnerRider ? winnerRider.name : 'Ukendt';
+                    }
+                } else {
+                    // Stage race - check general classification
+                    if (race.generalClassification && race.generalClassification.length > 0) {
+                        const gcWinner = race.generalClassification.find(gc => gc.position === 1);
+                        if (gcWinner) {
+                            const winnerRider = DataManager.getRiderById(gcWinner.riderId);
+                            winner = winnerRider ? winnerRider.name : 'Ukendt';
+                        }
+                    }
+                }
+
                 html += '<tr>';
                 html += `<td>${race.name}</td>`;
-                html += `<td>${PointsCalculator.getRaceTypeName(race.type)}</td>`;
-                html += `<td>${race.raceFormat === 'one-day' ? 'Endagsløb' : 'Etapeløb'}</td>`;
+                html += `<td>${winner}</td>`;
                 html += `<td>${new Date(race.createdDate).toLocaleDateString('da-DK')}</td>`;
                 html += `<td><button class="btn btn-secondary" onclick="UI.viewRace('${race.id}')">Se Løb</button></td>`;
                 html += '</tr>';
@@ -808,39 +844,51 @@ const UI = {
         const riders = DataManager.getAllRiders();
         const race = DataManager.getRaceById(raceId);
 
+        // Create rider options for dropdowns
+        let riderOptions = '<option value="">-- Vælg rytter --</option>';
+        riders.forEach(rider => {
+            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
+        });
+
+        // Build map of existing results by position
+        const resultsByPosition = {};
+        race.results.forEach(result => {
+            resultsByPosition[result.position] = result;
+        });
+
+        // Create rows for each position (1 to number of riders)
         let tableRows = '';
-        riders.forEach((rider, index) => {
-            const existingResult = race.results.find(r => r.riderId === rider.id);
+        for (let position = 1; position <= riders.length; position++) {
+            const existingResult = resultsByPosition[position];
             tableRows += `
                 <tr>
-                    <td>${rider.name}</td>
+                    <td style="text-align: center; font-weight: bold;">${position}.</td>
                     <td>
-                        <input type="number"
-                               id="pos-${rider.id}"
-                               value="${existingResult ? existingResult.position : index + 1}"
-                               min="1"
-                               style="width: 60px; padding: 5px;">
+                        <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                            ${riderOptions}
+                        </select>
+                        ${existingResult ? `<script>document.getElementById('rider-${position}').value = '${existingResult.riderId}';</script>` : ''}
                     </td>
                     <td>
                         <input type="text"
-                               id="time-${rider.id}"
+                               id="time-${position}"
                                value="${existingResult ? existingResult.time : ''}"
                                placeholder="4:23:15"
-                               style="width: 100px; padding: 5px;">
+                               style="width: 100%; padding: 5px;">
                     </td>
                 </tr>
             `;
-        });
+        }
 
         this.createModal('Registrer Resultater', `
-            <p style="margin-bottom: 15px;">Indtast tid og placering for alle ryttere. Tom tid = rytter deltog ikke.</p>
+            <p style="margin-bottom: 15px;">Vælg rytter og tid for hver placering. Tom rytter = ingen på den placering.</p>
             <div style="max-height: 400px; overflow-y: auto;">
                 <table style="width: 100%;">
                     <thead>
                         <tr style="position: sticky; top: 0; background: white;">
+                            <th style="text-align: center; padding: 8px; width: 60px;">Plac.</th>
                             <th style="text-align: left; padding: 8px;">Rytter</th>
-                            <th style="text-align: left; padding: 8px;">Placering</th>
-                            <th style="text-align: left; padding: 8px;">Tid</th>
+                            <th style="text-align: left; padding: 8px; width: 120px;">Tid</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -852,7 +900,16 @@ const UI = {
                 <button class="btn btn-success" onclick="UI.saveBatchOneDayResults('${raceId}')">Gem Alle Resultater</button>
                 <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
             </div>
-        `);
+        `, () => {
+            // Set selected riders after modal is created
+            for (let position = 1; position <= riders.length; position++) {
+                const existingResult = resultsByPosition[position];
+                if (existingResult) {
+                    const select = document.getElementById(`rider-${position}`);
+                    if (select) select.value = existingResult.riderId;
+                }
+            }
+        });
     },
 
     // Save batch one-day results
@@ -860,22 +917,23 @@ const UI = {
         const riders = DataManager.getAllRiders();
         const results = [];
 
-        riders.forEach(rider => {
-            const posInput = document.getElementById(`pos-${rider.id}`);
-            const timeInput = document.getElementById(`time-${rider.id}`);
+        // Loop through positions instead of riders
+        for (let position = 1; position <= riders.length; position++) {
+            const riderSelect = document.getElementById(`rider-${position}`);
+            const timeInput = document.getElementById(`time-${position}`);
 
-            const time = timeInput.value.trim();
-            const position = parseInt(posInput.value);
+            const riderId = riderSelect ? riderSelect.value : '';
+            const time = timeInput ? timeInput.value.trim() : '';
 
-            // Only add if time is provided
-            if (time) {
+            // Only add if both rider and time are provided
+            if (riderId && time) {
                 results.push({
-                    riderId: rider.id,
+                    riderId: riderId,
                     time: time,
                     position: position
                 });
             }
-        });
+        }
 
         if (results.length === 0) {
             alert('Indtast venligst mindst ét resultat');
@@ -893,55 +951,66 @@ const UI = {
         const race = DataManager.getRaceById(raceId);
         const stage = race.stages.find(s => s.id === stageId);
 
+        // Create rider options for dropdowns
+        let riderOptions = '<option value="">-- Vælg rytter --</option>';
+        riders.forEach(rider => {
+            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
+        });
+
+        // Build map of existing results by position
+        const resultsByPosition = {};
+        stage.results.forEach(result => {
+            resultsByPosition[result.position] = result;
+        });
+
+        // Create rows for each position
         let tableRows = '';
-        riders.forEach((rider, index) => {
-            const existingResult = stage.results.find(r => r.riderId === rider.id);
+        for (let position = 1; position <= riders.length; position++) {
+            const existingResult = resultsByPosition[position];
             tableRows += `
                 <tr>
-                    <td>${rider.name}</td>
+                    <td style="text-align: center; font-weight: bold;">${position}.</td>
                     <td>
-                        <input type="number"
-                               id="pos-${rider.id}"
-                               value="${existingResult ? existingResult.position : index + 1}"
-                               min="1"
-                               style="width: 50px; padding: 5px;">
+                        <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                            ${riderOptions}
+                        </select>
                     </td>
                     <td>
                         <input type="text"
-                               id="time-${rider.id}"
+                               id="time-${position}"
                                value="${existingResult ? existingResult.time : ''}"
                                placeholder="4:23:15"
-                               style="width: 90px; padding: 5px;">
+                               style="width: 100%; padding: 5px;">
                     </td>
                     <td>
                         <input type="number"
-                               id="sprint-${rider.id}"
-                               value="${existingResult ? existingResult.sprintPoints : 0}"
+                               id="sprint-${position}"
+                               value="${existingResult ? existingResult.sprintPoints || 0 : 0}"
                                min="0"
-                               style="width: 50px; padding: 5px;">
+                               style="width: 100%; padding: 5px;">
                     </td>
                     <td>
                         <input type="number"
-                               id="mountain-${rider.id}"
-                               value="${existingResult ? existingResult.mountainPoints : 0}"
+                               id="mountain-${position}"
+                               value="${existingResult ? existingResult.mountainPoints || 0 : 0}"
                                min="0"
-                               style="width: 50px; padding: 5px;">
+                               style="width: 100%; padding: 5px;">
                     </td>
                 </tr>
             `;
-        });
+        }
 
         this.createModal('Registrer Etape Resultater', `
-            <p style="margin-bottom: 15px;">Indtast resultater for alle ryttere. Tom tid = rytter deltog ikke.</p>
+            <p style="margin-bottom: 15px;">Vælg rytter og resultater for hver placering. Tom rytter = ingen på den placering.</p>
             <div style="max-height: 400px; overflow-y: auto;">
                 <table style="width: 100%; font-size: 0.9rem;">
                     <thead>
                         <tr style="position: sticky; top: 0; background: white;">
+                            <th style="text-align: center; padding: 8px; width: 50px;">Plac.</th>
                             <th style="text-align: left; padding: 8px;">Rytter</th>
-                            <th style="text-align: left; padding: 8px;">Pos.</th>
-                            <th style="text-align: left; padding: 8px;">Tid</th>
-                            <th style="text-align: left; padding: 8px;">Sprint</th>
-                            <th style="text-align: left; padding: 8px;">Bjerg</th>
+                            <th style="text-align: left; padding: 8px; width: 100px;">Tid</th>
+                            <th style="text-align: left; padding: 8px; width: 70px;">Sprint</th>
+                            <th style="text-align: left; padding: 8px; width: 70px;">Bjerg</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -953,7 +1022,16 @@ const UI = {
                 <button class="btn btn-success" onclick="UI.saveBatchStageResults('${raceId}', '${stageId}')">Gem Alle Resultater</button>
                 <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
             </div>
-        `);
+        `, () => {
+            // Set selected riders after modal is created
+            for (let position = 1; position <= riders.length; position++) {
+                const existingResult = resultsByPosition[position];
+                if (existingResult) {
+                    const select = document.getElementById(`rider-${position}`);
+                    if (select) select.value = existingResult.riderId;
+                }
+            }
+        });
     },
 
     // Save batch stage results
@@ -961,28 +1039,29 @@ const UI = {
         const riders = DataManager.getAllRiders();
         const results = [];
 
-        riders.forEach(rider => {
-            const posInput = document.getElementById(`pos-${rider.id}`);
-            const timeInput = document.getElementById(`time-${rider.id}`);
-            const sprintInput = document.getElementById(`sprint-${rider.id}`);
-            const mountainInput = document.getElementById(`mountain-${rider.id}`);
+        // Loop through positions instead of riders
+        for (let position = 1; position <= riders.length; position++) {
+            const riderSelect = document.getElementById(`rider-${position}`);
+            const timeInput = document.getElementById(`time-${position}`);
+            const sprintInput = document.getElementById(`sprint-${position}`);
+            const mountainInput = document.getElementById(`mountain-${position}`);
 
-            const time = timeInput.value.trim();
-            const position = parseInt(posInput.value);
-            const sprintPoints = parseInt(sprintInput.value) || 0;
-            const mountainPoints = parseInt(mountainInput.value) || 0;
+            const riderId = riderSelect ? riderSelect.value : '';
+            const time = timeInput ? timeInput.value.trim() : '';
+            const sprintPoints = sprintInput ? parseInt(sprintInput.value) || 0 : 0;
+            const mountainPoints = mountainInput ? parseInt(mountainInput.value) || 0 : 0;
 
-            // Only add if time is provided
-            if (time) {
+            // Only add if both rider and time are provided
+            if (riderId && time) {
                 results.push({
-                    riderId: rider.id,
+                    riderId: riderId,
                     time: time,
                     position: position,
                     sprintPoints: sprintPoints,
                     mountainPoints: mountainPoints
                 });
             }
-        });
+        }
 
         if (results.length === 0) {
             alert('Indtast venligst mindst ét resultat');
@@ -1031,7 +1110,7 @@ const UI = {
     },
 
     // Create modal
-    createModal(title, content) {
+    createModal(title, content, callback) {
         const modalHtml = `
             <div id="modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
                 <div style="background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
@@ -1047,6 +1126,11 @@ const UI = {
         const modalContainer = document.createElement('div');
         modalContainer.innerHTML = modalHtml;
         document.body.appendChild(modalContainer);
+
+        // Call callback after modal is added to DOM
+        if (callback && typeof callback === 'function') {
+            setTimeout(callback, 0);
+        }
     },
 
     // Close modal

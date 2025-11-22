@@ -539,7 +539,9 @@ const DataManager = {
     // Helper: Add points to rider and their team
     addPointsToRider(riderId, points, isWin) {
         const data = this.getData();
-        const game = this.getCurrentGame();
+
+        if (!data.currentGameId) return;
+        const game = data.games.find(g => g.id === data.currentGameId);
         if (!game) return;
 
         // Add to rider
@@ -551,8 +553,16 @@ const DataManager = {
         riderStanding.worldTourPoints += points;
         if (isWin) riderStanding.wins++;
 
-        // Add to team
-        const rider = this.getRiderById(riderId);
+        // Add to team - find rider directly in game's teams
+        let rider = null;
+        for (const team of game.teams) {
+            const foundRider = team.riders.find(r => r.id === riderId);
+            if (foundRider) {
+                rider = foundRider;
+                break;
+            }
+        }
+
         if (rider) {
             let teamStanding = game.teamStandings.find(t => t.teamId === rider.teamId);
             if (!teamStanding) {
