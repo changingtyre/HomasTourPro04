@@ -13,7 +13,7 @@ const UI = {
         const data = DataManager.getData();
 
         let html = '<div class="card">';
-        html += '<h2>Velkommen til Cykel Tour Manager</h2>';
+        html += '<h2>Velkommen til Homas Tour Pro</h2>';
         html += '<p>Administrer dine cykelløb, hold og ryttere gennem sæsonerne.</p>';
         html += '<div class="home-actions">';
         html += '<button class="btn btn-primary" onclick="UI.showCreateGame()">Opret Nyt Spil</button>';
@@ -81,10 +81,10 @@ const UI = {
         }
 
         let html = '<div class="nav-tabs">';
-        html += '<button class="nav-tab active" onclick="UI.showTab(\'overview\')">Overblik</button>';
-        html += '<button class="nav-tab" onclick="UI.showTab(\'players\')">Spillere & Hold</button>';
-        html += '<button class="nav-tab" onclick="UI.showTab(\'races\')">Løb</button>';
-        html += '<button class="nav-tab" onclick="UI.showTab(\'standings\')">Stilling</button>';
+        html += '<button class="nav-tab active" onclick="UI.showTab(\'overview\', event)">Overblik</button>';
+        html += '<button class="nav-tab" onclick="UI.showTab(\'players\', event)">Spillere & Hold</button>';
+        html += '<button class="nav-tab" onclick="UI.showTab(\'races\', event)">Løb</button>';
+        html += '<button class="nav-tab" onclick="UI.showTab(\'standings\', event)">Stilling</button>';
         html += '</div>';
         html += '<div id="tab-content"></div>';
 
@@ -94,12 +94,25 @@ const UI = {
     },
 
     // Show tab content
-    showTab(tabName) {
+    showTab(tabName, event) {
         // Update active tab
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.classList.remove('active');
         });
-        event.target.classList.add('active');
+
+        // Only update active tab if event exists (clicked from UI)
+        if (event && event.target) {
+            event.target.classList.add('active');
+        } else {
+            // Programmatically called - find and activate the correct tab
+            const tabs = document.querySelectorAll('.nav-tab');
+            tabs.forEach(tab => {
+                const onclick = tab.getAttribute('onclick');
+                if (onclick && onclick.includes(`'${tabName}'`)) {
+                    tab.classList.add('active');
+                }
+            });
+        }
 
         const tabContent = document.getElementById('tab-content');
 
@@ -525,10 +538,10 @@ const UI = {
         // Tabs for different views
         html += '<div class="card">';
         html += '<div class="nav-tabs">';
-        html += '<button class="nav-tab active" onclick="UI.showRaceTab(\'stages\', \'' + race.id + '\')">Etaper</button>';
-        html += '<button class="nav-tab" onclick="UI.showRaceTab(\'gc\', \'' + race.id + '\')">Samlet Klassement</button>';
-        html += '<button class="nav-tab" onclick="UI.showRaceTab(\'points\', \'' + race.id + '\')">Pointkonkurrencen</button>';
-        html += '<button class="nav-tab" onclick="UI.showRaceTab(\'mountain\', \'' + race.id + '\')">Bjergkonkurrencen</button>';
+        html += '<button class="nav-tab active" onclick="UI.showRaceTab(\'stages\', \'' + race.id + '\', event)">Etaper</button>';
+        html += '<button class="nav-tab" onclick="UI.showRaceTab(\'gc\', \'' + race.id + '\', event)">Samlet Klassement</button>';
+        html += '<button class="nav-tab" onclick="UI.showRaceTab(\'points\', \'' + race.id + '\', event)">Pointkonkurrencen</button>';
+        html += '<button class="nav-tab" onclick="UI.showRaceTab(\'mountain\', \'' + race.id + '\', event)">Bjergkonkurrencen</button>';
         html += '</div>';
         html += '<div id="race-tab-content"></div>';
         html += '</div>';
@@ -538,12 +551,25 @@ const UI = {
     },
 
     // Show race tab
-    showRaceTab(tabName, raceId) {
+    showRaceTab(tabName, raceId, event) {
         // Update active tab
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.classList.remove('active');
         });
-        event.target.classList.add('active');
+
+        // Only update active tab if event exists (clicked from UI)
+        if (event && event.target) {
+            event.target.classList.add('active');
+        } else {
+            // Programmatically called - find and activate the correct tab
+            const tabs = document.querySelectorAll('.nav-tab');
+            tabs.forEach(tab => {
+                const onclick = tab.getAttribute('onclick');
+                if (onclick && onclick.includes(`'${tabName}'`)) {
+                    tab.classList.add('active');
+                }
+            });
+        }
 
         const race = DataManager.getRaceById(raceId);
         const tabContent = document.getElementById('race-tab-content');

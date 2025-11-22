@@ -1,4 +1,4 @@
-# Cykel Tour Manager 🚴
+# Homas Tour Pro 🚴
 
 Et komplet system til at holde styr på resultaterne fra jeres cykelbrætspil gennem mange år!
 
