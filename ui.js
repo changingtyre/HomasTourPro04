@@ -330,15 +330,24 @@ const UI = {
 
     // Add player
     addPlayer() {
-        const name = document.getElementById('player-name').value.trim();
-        if (!name) {
-            alert('Indtast venligst et navn');
-            return;
-        }
+        try {
+            const name = document.getElementById('player-name').value.trim();
+            if (!name) {
+                alert('Indtast venligst et navn');
+                return;
+            }
 
-        DataManager.addPlayer(name);
-        this.closeModal();
-        this.showGameDashboard();
+            DataManager.addPlayer(name);
+            this.closeModal();
+
+            // Small delay to ensure modal is fully closed
+            setTimeout(() => {
+                this.showGameDashboard();
+            }, 50);
+        } catch (error) {
+            console.error('Error adding player:', error);
+            alert('Fejl ved tilføjelse af spiller: ' + error.message);
+        }
     },
 
     // Show add team form
@@ -368,17 +377,26 @@ const UI = {
 
     // Add team
     addTeam() {
-        const name = document.getElementById('team-name').value.trim();
-        const playerId = document.getElementById('team-player').value;
+        try {
+            const name = document.getElementById('team-name').value.trim();
+            const playerId = document.getElementById('team-player').value;
 
-        if (!name) {
-            alert('Indtast venligst et holdnavn');
-            return;
+            if (!name) {
+                alert('Indtast venligst et holdnavn');
+                return;
+            }
+
+            DataManager.addTeam(name, playerId);
+            this.closeModal();
+
+            // Small delay to ensure modal is fully closed
+            setTimeout(() => {
+                this.showGameDashboard();
+            }, 50);
+        } catch (error) {
+            console.error('Error adding team:', error);
+            alert('Fejl ved tilføjelse af hold: ' + error.message);
         }
-
-        DataManager.addTeam(name, playerId);
-        this.closeModal();
-        this.showGameDashboard();
     },
 
     // Show add rider form
@@ -408,17 +426,26 @@ const UI = {
 
     // Add rider
     addRider() {
-        const name = document.getElementById('rider-name').value.trim();
-        const teamId = document.getElementById('rider-team').value;
+        try {
+            const name = document.getElementById('rider-name').value.trim();
+            const teamId = document.getElementById('rider-team').value;
 
-        if (!name) {
-            alert('Indtast venligst et rytternavn');
-            return;
+            if (!name) {
+                alert('Indtast venligst et rytternavn');
+                return;
+            }
+
+            DataManager.addRider(name, teamId);
+            this.closeModal();
+
+            // Small delay to ensure modal is fully closed
+            setTimeout(() => {
+                this.showGameDashboard();
+            }, 50);
+        } catch (error) {
+            console.error('Error adding rider:', error);
+            alert('Fejl ved tilføjelse af rytter: ' + error.message);
         }
-
-        DataManager.addRider(name, teamId);
-        this.closeModal();
-        this.showGameDashboard();
     },
 
     // Show create race form
@@ -452,36 +479,56 @@ const UI = {
 
     // Create race
     createRace() {
-        const name = document.getElementById('race-name').value.trim();
-        const type = document.getElementById('race-type').value;
-        const format = document.getElementById('race-format').value;
+        try {
+            const name = document.getElementById('race-name').value.trim();
+            const type = document.getElementById('race-type').value;
+            const format = document.getElementById('race-format').value;
 
-        if (!name) {
-            alert('Indtast venligst et løbsnavn');
-            return;
+            if (!name) {
+                alert('Indtast venligst et løbsnavn');
+                return;
+            }
+
+            const race = DataManager.createRace(name, type, format);
+            this.closeModal();
+
+            // Small delay to ensure modal is fully closed before navigating
+            setTimeout(() => {
+                this.viewRace(race.id);
+            }, 100);
+        } catch (error) {
+            console.error('Error creating race:', error);
+            alert('Fejl ved oprettelse af løb: ' + error.message);
         }
-
-        const race = DataManager.createRace(name, type, format);
-        this.closeModal();
-        this.viewRace(race.id);
     },
 
     // View race details
     viewRace(raceId) {
-        const race = DataManager.getRaceById(raceId);
-        if (!race) return;
+        try {
+            const race = DataManager.getRaceById(raceId);
+            if (!race) {
+                console.error('Race not found:', raceId);
+                alert('Løbet kunne ikke findes!');
+                this.showGameDashboard();
+                return;
+            }
 
-        this.mainContent.innerHTML = `
-            <button class="btn btn-secondary mb-20" onclick="UI.showGameDashboard()">← Tilbage til Dashboard</button>
-            <div id="race-content"></div>
-        `;
+            this.mainContent.innerHTML = `
+                <button class="btn btn-secondary mb-20" onclick="UI.showGameDashboard()">← Tilbage til Dashboard</button>
+                <div id="race-content"></div>
+            `;
 
-        const raceContent = document.getElementById('race-content');
+            const raceContent = document.getElementById('race-content');
 
-        if (race.raceFormat === 'one-day') {
-            this.showOneDayRace(raceContent, race);
-        } else {
-            this.showStageRace(raceContent, race);
+            if (race.raceFormat === 'one-day') {
+                this.showOneDayRace(raceContent, race);
+            } else {
+                this.showStageRace(raceContent, race);
+            }
+        } catch (error) {
+            console.error('Error viewing race:', error);
+            alert('Fejl ved visning af løb: ' + error.message);
+            this.showGameDashboard();
         }
     },
 
