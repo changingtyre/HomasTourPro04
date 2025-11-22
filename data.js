@@ -246,7 +246,9 @@ const DataManager = {
     // Add stage to race
     addStage(raceId, stageName, stageNumber) {
         const data = this.getData();
-        const game = this.getCurrentGame();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
         if (!game) return null;
 
         const race = game.races.find(r => r.id === raceId);
@@ -266,7 +268,9 @@ const DataManager = {
     // Add stage result
     addStageResult(raceId, stageId, riderId, time, position, sprintPoints = 0, mountainPoints = 0) {
         const data = this.getData();
-        const game = this.getCurrentGame();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
         if (!game) return null;
 
         const race = game.races.find(r => r.id === raceId);
@@ -294,10 +298,49 @@ const DataManager = {
         return result;
     },
 
+    // Add multiple stage results at once
+    addBatchStageResults(raceId, stageId, results) {
+        const data = this.getData();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return null;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return null;
+
+        const stage = race.stages.find(s => s.id === stageId);
+        if (!stage) return null;
+
+        // Clear all existing results
+        stage.results = [];
+
+        // Add all new results
+        results.forEach(result => {
+            if (result.riderId && result.time && result.position) {
+                stage.results.push({
+                    riderId: result.riderId,
+                    time: result.time,
+                    position: result.position,
+                    sprintPoints: result.sprintPoints || 0,
+                    mountainPoints: result.mountainPoints || 0
+                });
+            }
+        });
+
+        // Recalculate classifications
+        this.recalculateClassifications(raceId);
+
+        this.saveData(data);
+        return stage.results;
+    },
+
     // Add one-day race result
     addOneDayResult(raceId, riderId, time, position) {
         const data = this.getData();
-        const game = this.getCurrentGame();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
         if (!game) return null;
 
         const race = game.races.find(r => r.id === raceId);
@@ -320,10 +363,44 @@ const DataManager = {
         return result;
     },
 
+    // Add multiple one-day race results at once
+    addBatchOneDayResults(raceId, results) {
+        const data = this.getData();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return null;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race || race.raceFormat !== 'one-day') return null;
+
+        // Clear all existing results
+        race.results = [];
+
+        // Add all new results
+        results.forEach(result => {
+            if (result.riderId && result.time && result.position) {
+                race.results.push({
+                    riderId: result.riderId,
+                    time: result.time,
+                    position: result.position
+                });
+            }
+        });
+
+        // Recalculate world tour points
+        this.recalculateWorldTourPoints();
+
+        this.saveData(data);
+        return race.results;
+    },
+
     // Recalculate classifications for stage race
     recalculateClassifications(raceId) {
         const data = this.getData();
-        const game = this.getCurrentGame();
+
+        if (!data.currentGameId) return;
+        const game = data.games.find(g => g.id === data.currentGameId);
         if (!game) return;
 
         const race = game.races.find(r => r.id === raceId);
@@ -380,7 +457,9 @@ const DataManager = {
     // Set yellow jersey days for a rider
     setYellowJerseyDays(raceId, riderId, days) {
         const data = this.getData();
-        const game = this.getCurrentGame();
+
+        if (!data.currentGameId) return;
+        const game = data.games.find(g => g.id === data.currentGameId);
         if (!game) return;
 
         const race = game.races.find(r => r.id === raceId);
@@ -397,7 +476,9 @@ const DataManager = {
     // Recalculate all world tour points
     recalculateWorldTourPoints() {
         const data = this.getData();
-        const game = this.getCurrentGame();
+
+        if (!data.currentGameId) return;
+        const game = data.games.find(g => g.id === data.currentGameId);
         if (!game) return;
 
         // Reset all points
