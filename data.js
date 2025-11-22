@@ -18,13 +18,41 @@ const DataManager = {
 
     // Load data from localStorage
     loadData() {
-        const json = localStorage.getItem(this.STORAGE_KEY);
-        return json ? JSON.parse(json) : null;
+        try {
+            const json = localStorage.getItem(this.STORAGE_KEY);
+            console.log('loadData: Retrieved from localStorage:', json ? json.substring(0, 100) + '...' : 'null');
+            return json ? JSON.parse(json) : null;
+        } catch (error) {
+            console.error('Error loading data from localStorage:', error);
+            alert('FEJL: Kan ikke læse data fra localStorage. Måske bruger du file:// protokol? Prøv at åbne via en webserver.');
+            return null;
+        }
     },
 
     // Save data to localStorage
     saveData(data) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+        try {
+            const jsonString = JSON.stringify(data);
+            console.log('saveData: Saving to localStorage:', jsonString.substring(0, 100) + '...');
+            localStorage.setItem(this.STORAGE_KEY, jsonString);
+            console.log('saveData: Successfully saved to localStorage');
+
+            // Verify it was saved
+            const verify = localStorage.getItem(this.STORAGE_KEY);
+            if (!verify) {
+                throw new Error('Data was not saved to localStorage!');
+            }
+            console.log('saveData: Verified data was saved');
+        } catch (error) {
+            console.error('Error saving data to localStorage:', error);
+            alert('KRITISK FEJL: Kan ikke gemme data!\n\n' +
+                  'Dette sker ofte når du åbner HTML filen direkte (file://).\n\n' +
+                  'Løsning:\n' +
+                  '1. Brug Python: python -m http.server 8000\n' +
+                  '2. Eller brug anden webserver\n' +
+                  '3. Åbn derefter http://localhost:8000');
+            throw error;
+        }
     },
 
     // Get current data
@@ -77,16 +105,30 @@ const DataManager = {
 
     // Add player to current game
     addPlayer(playerName) {
+        console.log('DataManager.addPlayer called with:', playerName);
         const data = this.getData();
+        console.log('Current data:', data);
+
         const game = this.getCurrentGame();
-        if (!game) return null;
+        console.log('Current game:', game);
+
+        if (!game) {
+            console.error('No current game found!');
+            return null;
+        }
 
         const player = {
             id: 'player-' + Date.now(),
             name: playerName
         };
+        console.log('Created player:', player);
+
         game.players.push(player);
+        console.log('Game after adding player:', game);
+
         this.saveData(data);
+        console.log('Data saved successfully');
+
         return player;
     },
 
@@ -147,9 +189,17 @@ const DataManager = {
 
     // Create race
     createRace(raceName, raceType, raceFormat) {
+        console.log('DataManager.createRace called with:', raceName, raceType, raceFormat);
         const data = this.getData();
+        console.log('Current data:', data);
+
         const game = this.getCurrentGame();
-        if (!game) return null;
+        console.log('Current game:', game);
+
+        if (!game) {
+            console.error('No current game found!');
+            return null;
+        }
 
         const race = {
             id: 'race-' + Date.now(),
@@ -164,8 +214,14 @@ const DataManager = {
             mountainClassification: raceFormat === 'stage' ? [] : null,
             yellowJerseyDays: raceFormat === 'stage' ? {} : null
         };
+        console.log('Created race:', race);
+
         game.races.push(race);
+        console.log('Game after adding race:', game);
+
         this.saveData(data);
+        console.log('Data saved successfully. Race ID:', race.id);
+
         return race;
     },
 

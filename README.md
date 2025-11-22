@@ -32,10 +32,16 @@ git clone [repository URL]
 cd HomasTourPro04
 ```
 
-### Start systemet:
-- Dobbeltklik på `index.html` filen
-- **ELLER** højreklik → "Åbn med" → Chrome/Firefox/Safari/Edge
-- Systemet kører nu lokalt i din browser!
+### ⚠️ VIGTIGT: Start via webserver!
+
+**Åbn IKKE filen direkte!** localStorage virker ikke med file:// protokollen.
+
+**Nemmeste metode (Python):**
+1. Åbn terminal/kommandoprompt i mappen
+2. Kør: `python -m http.server 8000` (eller `python3 -m http.server 8000` på Mac/Linux)
+3. Åbn browseren og gå til: **http://localhost:8000**
+
+**Se START_HER.md for detaljeret guide og alternative metoder.**
 
 ## Sådan bruger du systemet
 
