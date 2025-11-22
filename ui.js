@@ -180,6 +180,9 @@ const UI = {
     // Players tab
     showPlayersTab(container) {
         const game = DataManager.getCurrentGame();
+        console.log('showPlayersTab: Current game:', game);
+        console.log('showPlayersTab: Number of players:', game.players.length);
+        console.log('showPlayersTab: Players array:', game.players);
 
         let html = '<div class="card">';
         html += '<div class="flex-between mb-20">';
@@ -189,7 +192,9 @@ const UI = {
 
         if (game.players.length === 0) {
             html += '<p>Ingen spillere endnu. Opret din første spiller!</p>';
+            console.log('showPlayersTab: Showing "no players" message');
         } else {
+            console.log('showPlayersTab: Showing', game.players.length, 'players');
             game.players.forEach(player => {
                 const playerTeams = game.teams.filter(t => t.playerId === player.id);
                 html += '<div class="card" style="margin-bottom: 20px;">';
@@ -337,12 +342,18 @@ const UI = {
                 return;
             }
 
-            DataManager.addPlayer(name);
+            console.log('UI.addPlayer: Adding player:', name);
+            const player = DataManager.addPlayer(name);
+            console.log('UI.addPlayer: Player added, returned:', player);
+
             this.closeModal();
 
             // Small delay to ensure modal is fully closed
             setTimeout(() => {
+                console.log('UI.addPlayer: Refreshing dashboard and showing players tab');
                 this.showGameDashboard();
+                // Automatically switch to players tab to show the new player
+                this.showTab('players');
             }, 50);
         } catch (error) {
             console.error('Error adding player:', error);
@@ -392,6 +403,8 @@ const UI = {
             // Small delay to ensure modal is fully closed
             setTimeout(() => {
                 this.showGameDashboard();
+                // Automatically switch to players tab to show the new team
+                this.showTab('players');
             }, 50);
         } catch (error) {
             console.error('Error adding team:', error);
@@ -441,6 +454,8 @@ const UI = {
             // Small delay to ensure modal is fully closed
             setTimeout(() => {
                 this.showGameDashboard();
+                // Automatically switch to players tab to show the new rider
+                this.showTab('players');
             }, 50);
         } catch (error) {
             console.error('Error adding rider:', error);
