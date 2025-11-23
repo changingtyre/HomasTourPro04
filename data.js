@@ -411,6 +411,11 @@ const DataManager = {
         const stage = race.stages.find(s => s.id === stageId);
         if (!stage) return null;
 
+        // Initialize mountains array if it doesn't exist (for old races created before this feature)
+        if (!stage.mountains) {
+            stage.mountains = [];
+        }
+
         const mountain = {
             id: 'mountain-' + Date.now(),
             name: mountainName,
@@ -436,6 +441,11 @@ const DataManager = {
 
         const stage = race.stages.find(s => s.id === stageId);
         if (!stage) return null;
+
+        // Initialize sprints array if it doesn't exist (for old races created before this feature)
+        if (!stage.sprints) {
+            stage.sprints = [];
+        }
 
         const sprint = {
             id: 'sprint-' + Date.now(),
