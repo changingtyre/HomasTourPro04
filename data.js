@@ -496,39 +496,39 @@ const DataManager = {
                 // One-day race points
                 race.results.forEach(result => {
                     const points = PointsCalculator.getOneDayRacePoints(race.type, result.position);
-                    this.addPointsToRider(result.riderId, points, result.position === 1);
+                    this.addPointsToRider(game, result.riderId, points, result.position === 1);
                 });
             } else if (race.raceFormat === 'stage') {
                 // Stage race - general classification points
                 race.generalClassification.forEach(gc => {
                     const points = PointsCalculator.getGCPoints(race.type, gc.position);
-                    this.addPointsToRider(gc.riderId, points, gc.position === 1);
+                    this.addPointsToRider(game, gc.riderId, points, gc.position === 1);
                 });
 
                 // Points classification
                 race.pointsClassification.forEach(pc => {
                     const points = PointsCalculator.getJerseyPoints(race.type, pc.position, 'points');
-                    this.addPointsToRider(pc.riderId, points, false);
+                    this.addPointsToRider(game, pc.riderId, points, false);
                 });
 
                 // Mountain classification
                 race.mountainClassification.forEach(mc => {
                     const points = PointsCalculator.getJerseyPoints(race.type, mc.position, 'mountain');
-                    this.addPointsToRider(mc.riderId, points, false);
+                    this.addPointsToRider(game, mc.riderId, points, false);
                 });
 
                 // Stage wins
                 race.stages.forEach(stage => {
                     stage.results.forEach(result => {
                         const points = PointsCalculator.getStagePoints(race.type, result.position);
-                        this.addPointsToRider(result.riderId, points, result.position === 1);
+                        this.addPointsToRider(game, result.riderId, points, result.position === 1);
                     });
                 });
 
                 // Yellow jersey bonus points
                 Object.entries(race.yellowJerseyDays || {}).forEach(([riderId, days]) => {
                     const bonusPoints = PointsCalculator.getYellowJerseyBonus(race.type, days);
-                    this.addPointsToRider(riderId, bonusPoints, false);
+                    this.addPointsToRider(game, riderId, bonusPoints, false);
                 });
             }
         });
@@ -537,11 +537,7 @@ const DataManager = {
     },
 
     // Helper: Add points to rider and their team
-    addPointsToRider(riderId, points, isWin) {
-        const data = this.getData();
-
-        if (!data.currentGameId) return;
-        const game = data.games.find(g => g.id === data.currentGameId);
+    addPointsToRider(game, riderId, points, isWin) {
         if (!game) return;
 
         // Add to rider
