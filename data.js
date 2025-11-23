@@ -244,7 +244,7 @@ const DataManager = {
     },
 
     // Add stage to race
-    addStage(raceId, stageName, stageNumber) {
+    addStage(raceId, stageName, stageNumber, stageType = 'flat') {
         const data = this.getData();
 
         if (!data.currentGameId) return null;
@@ -258,7 +258,10 @@ const DataManager = {
             id: 'stage-' + Date.now(),
             name: stageName,
             stageNumber: stageNumber,
-            results: []
+            stageType: stageType, // 'flat', 'hilly', or 'mountain'
+            results: [],
+            mountains: [], // Array of {id, name, category, results: [{riderId, position}]}
+            sprints: [] // Array of {id, name, results: [{riderId, position}]}
         };
         race.stages.push(stage);
         this.saveData(data);
@@ -315,15 +318,13 @@ const DataManager = {
         // Clear all existing results
         stage.results = [];
 
-        // Add all new results
+        // Add all new results (only time and position, points are calculated from sprints/mountains)
         results.forEach(result => {
             if (result.riderId && result.time && result.position) {
                 stage.results.push({
                     riderId: result.riderId,
                     time: result.time,
-                    position: result.position,
-                    sprintPoints: result.sprintPoints || 0,
-                    mountainPoints: result.mountainPoints || 0
+                    position: result.position
                 });
             }
         });
@@ -395,6 +396,105 @@ const DataManager = {
         return race.results;
     },
 
+    // Add mountain to stage
+    addMountain(raceId, stageId, mountainName, category) {
+        const data = this.getData();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return null;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return null;
+
+        const stage = race.stages.find(s => s.id === stageId);
+        if (!stage) return null;
+
+        const mountain = {
+            id: 'mountain-' + Date.now(),
+            name: mountainName,
+            category: category, // 'cat4', 'cat3', 'cat2', 'cat1', or 'hc'
+            results: [] // [{riderId, position}]
+        };
+
+        stage.mountains.push(mountain);
+        this.saveData(data);
+        return mountain;
+    },
+
+    // Add sprint to stage
+    addSprint(raceId, stageId, sprintName) {
+        const data = this.getData();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return null;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return null;
+
+        const stage = race.stages.find(s => s.id === stageId);
+        if (!stage) return null;
+
+        const sprint = {
+            id: 'sprint-' + Date.now(),
+            name: sprintName,
+            results: [] // [{riderId, position}]
+        };
+
+        stage.sprints.push(sprint);
+        this.saveData(data);
+        return sprint;
+    },
+
+    // Add results to mountain
+    addMountainResults(raceId, stageId, mountainId, results) {
+        const data = this.getData();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return null;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return null;
+
+        const stage = race.stages.find(s => s.id === stageId);
+        if (!stage) return null;
+
+        const mountain = stage.mountains.find(m => m.id === mountainId);
+        if (!mountain) return null;
+
+        mountain.results = results; // [{riderId, position}]
+
+        this.recalculateClassifications(raceId);
+        this.saveData(data);
+        return mountain.results;
+    },
+
+    // Add results to sprint
+    addSprintResults(raceId, stageId, sprintId, results) {
+        const data = this.getData();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return null;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return null;
+
+        const stage = race.stages.find(s => s.id === stageId);
+        if (!stage) return null;
+
+        const sprint = stage.sprints.find(s => s.id === sprintId);
+        if (!sprint) return null;
+
+        sprint.results = results; // [{riderId, position}]
+
+        this.recalculateClassifications(raceId);
+        this.saveData(data);
+        return sprint.results;
+    },
+
     // Recalculate classifications for stage race
     recalculateClassifications(raceId) {
         const data = this.getData();
@@ -423,10 +523,28 @@ const DataManager = {
         // Calculate points classification (sprint points)
         const pointsMap = new Map();
         race.stages.forEach(stage => {
-            stage.results.forEach(result => {
-                const currentPoints = pointsMap.get(result.riderId) || 0;
-                pointsMap.set(result.riderId, currentPoints + (result.sprintPoints || 0));
-            });
+            // Points from stage finish
+            if (stage.results && stage.results.length > 0) {
+                stage.results.forEach(result => {
+                    const stageType = stage.stageType || 'flat';
+                    const finishPoints = PointsCalculator.getStageFinishPoints(stageType, result.position);
+                    const currentPoints = pointsMap.get(result.riderId) || 0;
+                    pointsMap.set(result.riderId, currentPoints + finishPoints);
+                });
+            }
+
+            // Points from intermediate sprints
+            if (stage.sprints) {
+                stage.sprints.forEach(sprint => {
+                    if (sprint.results) {
+                        sprint.results.forEach(result => {
+                            const sprintPoints = PointsCalculator.getIntermediateSprintPoints(result.position);
+                            const currentPoints = pointsMap.get(result.riderId) || 0;
+                            pointsMap.set(result.riderId, currentPoints + sprintPoints);
+                        });
+                    }
+                });
+            }
         });
 
         race.pointsClassification = Array.from(pointsMap.entries())
@@ -437,10 +555,18 @@ const DataManager = {
         // Calculate mountain classification (mountain points)
         const mountainMap = new Map();
         race.stages.forEach(stage => {
-            stage.results.forEach(result => {
-                const currentPoints = mountainMap.get(result.riderId) || 0;
-                mountainMap.set(result.riderId, currentPoints + (result.mountainPoints || 0));
-            });
+            // Points from mountains
+            if (stage.mountains) {
+                stage.mountains.forEach(mountain => {
+                    if (mountain.results) {
+                        mountain.results.forEach(result => {
+                            const mountainPoints = PointsCalculator.getMountainPoints(mountain.category, result.position);
+                            const currentPoints = mountainMap.get(result.riderId) || 0;
+                            mountainMap.set(result.riderId, currentPoints + mountainPoints);
+                        });
+                    }
+                });
+            }
         });
 
         race.mountainClassification = Array.from(mountainMap.entries())

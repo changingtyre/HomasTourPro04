@@ -25,6 +25,25 @@ const PointsCalculator = {
     // Other World Cup races
     WORLDCUP_OTHER: [40, 32, 26, 22, 18, 14, 10, 6, 2],
 
+    // Stage finish points (for sprint classification)
+    STAGE_FINISH: {
+        flat: [50, 30, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1],
+        hilly: [30, 25, 22, 20, 18, 16, 14, 12, 8, 6, 5, 4, 3, 2, 1],
+        mountain: [20, 17, 15, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+    },
+
+    // Intermediate sprint points
+    INTERMEDIATE_SPRINT: [20, 17, 15, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+
+    // Mountain classification points
+    MOUNTAIN: {
+        'cat4': [1],
+        'cat3': [2, 1],
+        'cat2': [5, 3, 2, 1],
+        'cat1': [10, 8, 6, 4, 2, 1],
+        'hc': [20, 15, 12, 10, 8, 6, 4, 2]
+    },
+
     // Get points for one-day race
     getOneDayRacePoints(raceType, position) {
         let pointsArray;
@@ -120,6 +139,46 @@ const PointsCalculator = {
         }
 
         return bonusPerDay * days;
+    },
+
+    // Get points for stage finish (sprint classification)
+    getStageFinishPoints(stageType, position) {
+        const pointsArray = this.STAGE_FINISH[stageType] || this.STAGE_FINISH.flat;
+        return pointsArray[position - 1] || 0;
+    },
+
+    // Get points for intermediate sprint
+    getIntermediateSprintPoints(position) {
+        return this.INTERMEDIATE_SPRINT[position - 1] || 0;
+    },
+
+    // Get points for mountain climb
+    getMountainPoints(category, position) {
+        const pointsArray = this.MOUNTAIN[category];
+        if (!pointsArray) return 0;
+        return pointsArray[position - 1] || 0;
+    },
+
+    // Get stage type display name
+    getStageTypeName(stageType) {
+        const names = {
+            'flat': 'Flad',
+            'hilly': 'Kuperet',
+            'mountain': 'Bjerg'
+        };
+        return names[stageType] || stageType;
+    },
+
+    // Get mountain category display name
+    getMountainCategoryName(category) {
+        const names = {
+            'cat4': '4. kategori',
+            'cat3': '3. kategori',
+            'cat2': '2. kategori',
+            'cat1': '1. kategori',
+            'hc': 'Hors Catégorie (HC)'
+        };
+        return names[category] || category;
     },
 
     // Get race type display name
