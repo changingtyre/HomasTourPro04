@@ -1459,6 +1459,9 @@ const UI = {
 
     // Create modal
     createModal(title, content, callback) {
+        // Close any existing modals first
+        this.closeModal();
+
         const modalHtml = `
             <div id="modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
                 <div style="background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">

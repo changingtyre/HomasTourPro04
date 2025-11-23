@@ -517,6 +517,8 @@ const DataManager = {
         const race = game.races.find(r => r.id === raceId);
         if (!race || race.raceFormat !== 'stage') return;
 
+        console.log('Recalculating classifications for race:', race.name);
+
         // Calculate general classification (total time)
         const gcMap = new Map();
         race.stages.forEach(stage => {
@@ -584,6 +586,9 @@ const DataManager = {
             .map(([riderId, points]) => ({ riderId, points }))
             .sort((a, b) => b.points - a.points)
             .map((item, index) => ({ ...item, position: index + 1 }));
+
+        console.log('Points classification:', race.pointsClassification.length, 'riders');
+        console.log('Mountain classification:', race.mountainClassification.length, 'riders');
 
         // Calculate team classification (sum of times for first 3 riders from each team on each stage)
         const teamTimeMap = new Map();
