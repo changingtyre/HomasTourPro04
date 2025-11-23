@@ -229,6 +229,7 @@ const DataManager = {
             generalClassification: raceFormat === 'stage' ? [] : null,
             pointsClassification: raceFormat === 'stage' ? [] : null,
             mountainClassification: raceFormat === 'stage' ? [] : null,
+            teamClassification: raceFormat === 'stage' ? [] : null,
             yellowJerseyDays: raceFormat === 'stage' ? {} : null
         };
         console.log('Created race:', race);
@@ -572,6 +573,66 @@ const DataManager = {
         race.mountainClassification = Array.from(mountainMap.entries())
             .map(([riderId, points]) => ({ riderId, points }))
             .sort((a, b) => b.points - a.points)
+            .map((item, index) => ({ ...item, position: index + 1 }));
+
+        // Calculate team classification (sum of times for first 3 riders from each team on each stage)
+        const teamTimeMap = new Map();
+
+        // Get all teams in the game
+        game.teams.forEach(team => {
+            teamTimeMap.set(team.id, 0);
+        });
+
+        race.stages.forEach(stage => {
+            if (stage.results && stage.results.length > 0) {
+                // Group riders by team for this stage
+                const teamRidersMap = new Map();
+
+                stage.results.forEach(result => {
+                    // Find which team this rider belongs to
+                    let riderTeamId = null;
+                    for (const team of game.teams) {
+                        const rider = team.riders.find(r => r.id === result.riderId);
+                        if (rider) {
+                            riderTeamId = team.id;
+                            break;
+                        }
+                    }
+
+                    if (riderTeamId) {
+                        if (!teamRidersMap.has(riderTeamId)) {
+                            teamRidersMap.set(riderTeamId, []);
+                        }
+                        teamRidersMap.get(riderTeamId).push({
+                            riderId: result.riderId,
+                            time: this.parseTime(result.time),
+                            position: result.position
+                        });
+                    }
+                });
+
+                // For each team, sum the times of the first 3 riders
+                teamRidersMap.forEach((riders, teamId) => {
+                    // Sort by position (lower is better)
+                    riders.sort((a, b) => a.position - b.position);
+
+                    // Take first 3 riders
+                    const top3Riders = riders.slice(0, 3);
+
+                    // Sum their times
+                    const stageTeamTime = top3Riders.reduce((sum, rider) => sum + rider.time, 0);
+
+                    // Add to total team time
+                    const currentTotalTime = teamTimeMap.get(teamId) || 0;
+                    teamTimeMap.set(teamId, currentTotalTime + stageTeamTime);
+                });
+            }
+        });
+
+        race.teamClassification = Array.from(teamTimeMap.entries())
+            .filter(([teamId, totalTime]) => totalTime > 0) // Only include teams with results
+            .map(([teamId, totalTime]) => ({ teamId, totalTime }))
+            .sort((a, b) => a.totalTime - b.totalTime)
             .map((item, index) => ({ ...item, position: index + 1 }));
 
         // Recalculate world tour points

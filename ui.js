@@ -640,6 +640,7 @@ const UI = {
         html += '<button class="nav-tab" onclick="UI.showRaceTab(\'gc\', \'' + race.id + '\', event)">Samlet Klassement</button>';
         html += '<button class="nav-tab" onclick="UI.showRaceTab(\'points\', \'' + race.id + '\', event)">Pointkonkurrencen</button>';
         html += '<button class="nav-tab" onclick="UI.showRaceTab(\'mountain\', \'' + race.id + '\', event)">Bjergkonkurrencen</button>';
+        html += '<button class="nav-tab" onclick="UI.showRaceTab(\'team\', \'' + race.id + '\', event)">Holdkonkurrence</button>';
         html += '</div>';
         html += '<div id="race-tab-content"></div>';
         html += '</div>';
@@ -684,6 +685,9 @@ const UI = {
                 break;
             case 'mountain':
                 this.showMountainTab(tabContent, race);
+                break;
+            case 'team':
+                this.showTeamTab(tabContent, race);
                 break;
         }
     },
@@ -849,6 +853,32 @@ const UI = {
                 html += `<td>${rider ? rider.name : 'Ukendt'}${mc.position === 1 ? ' <span class="badge badge-polka">Prikkede Trøje</span>' : ''}</td>`;
                 html += `<td>${mc.points}</td>`;
                 html += `<td>${wtPoints}</td>`;
+                html += '</tr>';
+            });
+            html += '</table>';
+        }
+
+        container.innerHTML = html;
+    },
+
+    // Show team classification tab
+    showTeamTab(container, race) {
+        let html = '<h3>Holdkonkurrence</h3>';
+        html += '<p style="font-size: 0.9em; color: #666; margin-bottom: 15px;">Beregnet ud fra de 3 første ryttere fra hvert hold på hver etape.</p>';
+
+        if (!race.teamClassification || race.teamClassification.length === 0) {
+            html += '<p>Ingen data endnu.</p>';
+        } else {
+            html += '<table>';
+            html += '<tr><th>Pos.</th><th>Hold</th><th>Spiller</th><th>Samlet Tid</th></tr>';
+            race.teamClassification.forEach(tc => {
+                const team = DataManager.getTeamById(tc.teamId);
+                const player = team ? DataManager.getPlayerById(team.playerId) : null;
+                html += '<tr>';
+                html += `<td>${tc.position}</td>`;
+                html += `<td>${team ? team.name : 'Ukendt'}${tc.position === 1 ? ' <span class="badge badge-yellow">🏆</span>' : ''}</td>`;
+                html += `<td>${player ? player.name : 'Ukendt'}</td>`;
+                html += `<td>${DataManager.formatTime(tc.totalTime)}</td>`;
                 html += '</tr>';
             });
             html += '</table>';
