@@ -696,16 +696,69 @@ const UI = {
             html += '<p>Ingen etaper endnu. Tilføj den første etape!</p>';
         } else {
             race.stages.forEach(stage => {
-                html += `<div style="margin-bottom: 30px;">`;
+                const stageType = stage.stageType || 'flat';
+                html += `<div style="margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px;">`;
                 html += `<div class="flex-between">`;
-                html += `<h3>${stage.name}</h3>`;
-                html += `<button class="btn btn-secondary" onclick="UI.showAddStageResult('${race.id}', '${stage.id}')">Registrer Resultat</button>`;
+                html += `<div>`;
+                html += `<h3>${stage.name} <span style="font-size: 0.8em; color: #666;">(${PointsCalculator.getStageTypeName(stageType)})</span></h3>`;
+                html += `</div>`;
+                html += `<div style="display: flex; gap: 8px; flex-wrap: wrap;">`;
+                html += `<button class="btn btn-secondary" onclick="UI.showAddMountain('${race.id}', '${stage.id}')">➕ Bjerg</button>`;
+                html += `<button class="btn btn-secondary" onclick="UI.showAddSprint('${race.id}', '${stage.id}')">➕ Spurt</button>`;
+                html += `<button class="btn btn-primary" onclick="UI.showAddStageResult('${race.id}', '${stage.id}')">Registrer Resultat</button>`;
+                html += `</div>`;
                 html += `</div>`;
 
-                if (stage.results.length > 0) {
+                // Show mountains
+                if (stage.mountains && stage.mountains.length > 0) {
+                    html += '<div style="margin-top: 15px;"><strong>🏔️ Bjerge:</strong></div>';
+                    stage.mountains.forEach(mountain => {
+                        html += `<div style="margin-left: 20px; margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 4px;">`;
+                        html += `<div class="flex-between">`;
+                        html += `<strong>${mountain.name}</strong> (${PointsCalculator.getMountainCategoryName(mountain.category)})`;
+                        html += `<button class="btn btn-secondary" style="font-size: 0.8em; padding: 4px 8px;" onclick="UI.showMountainResults('${race.id}', '${stage.id}', '${mountain.id}')">Registrer</button>`;
+                        html += `</div>`;
+                        if (mountain.results && mountain.results.length > 0) {
+                            html += '<div style="margin-top: 8px; font-size: 0.9em;">';
+                            mountain.results.forEach((result, idx) => {
+                                const rider = DataManager.getRiderById(result.riderId);
+                                const points = PointsCalculator.getMountainPoints(mountain.category, result.position);
+                                html += `${idx > 0 ? ', ' : ''}${result.position}. ${rider ? rider.name : '?'} (${points}p)`;
+                            });
+                            html += '</div>';
+                        }
+                        html += `</div>`;
+                    });
+                }
+
+                // Show sprints
+                if (stage.sprints && stage.sprints.length > 0) {
+                    html += '<div style="margin-top: 15px;"><strong>💨 Spurter:</strong></div>';
+                    stage.sprints.forEach(sprint => {
+                        html += `<div style="margin-left: 20px; margin-top: 10px; padding: 10px; background: #f0f8ff; border-radius: 4px;">`;
+                        html += `<div class="flex-between">`;
+                        html += `<strong>${sprint.name}</strong>`;
+                        html += `<button class="btn btn-secondary" style="font-size: 0.8em; padding: 4px 8px;" onclick="UI.showSprintResults('${race.id}', '${stage.id}', '${sprint.id}')">Registrer</button>`;
+                        html += `</div>`;
+                        if (sprint.results && sprint.results.length > 0) {
+                            html += '<div style="margin-top: 8px; font-size: 0.9em;">';
+                            sprint.results.forEach((result, idx) => {
+                                const rider = DataManager.getRiderById(result.riderId);
+                                const points = PointsCalculator.getIntermediateSprintPoints(result.position);
+                                html += `${idx > 0 ? ', ' : ''}${result.position}. ${rider ? rider.name : '?'} (${points}p)`;
+                            });
+                            html += '</div>';
+                        }
+                        html += `</div>`;
+                    });
+                }
+
+                // Show stage finish results
+                html += '<div style="margin-top: 15px;"><strong>🏁 Etape Resultat:</strong></div>';
+                if (stage.results && stage.results.length > 0) {
                     const sortedResults = [...stage.results].sort((a, b) => a.position - b.position);
-                    html += '<table style="margin-top: 10px;">';
-                    html += '<tr><th>Pos.</th><th>Rytter</th><th>Tid</th><th>Sprint P.</th><th>Bjerg P.</th><th>WT Point</th></tr>';
+                    html += '<table style="margin-top: 10px; font-size: 0.9em;">';
+                    html += '<tr><th>Pos.</th><th>Rytter</th><th>Tid</th><th>Etape WT Point</th></tr>';
                     sortedResults.forEach(result => {
                         const rider = DataManager.getRiderById(result.riderId);
                         const points = PointsCalculator.getStagePoints(race.type, result.position);
@@ -713,14 +766,12 @@ const UI = {
                         html += `<td>${result.position}</td>`;
                         html += `<td>${rider ? rider.name : 'Ukendt'}</td>`;
                         html += `<td>${result.time}</td>`;
-                        html += `<td>${result.sprintPoints || 0}</td>`;
-                        html += `<td>${result.mountainPoints || 0}</td>`;
                         html += `<td>${points}</td>`;
                         html += '</tr>';
                     });
                     html += '</table>';
                 } else {
-                    html += '<p style="margin-top: 10px;">Ingen resultater endnu.</p>';
+                    html += '<p style="margin-top: 10px; margin-left: 20px; color: #666;">Ingen resultater endnu.</p>';
                 }
                 html += `</div>`;
             });
@@ -820,6 +871,14 @@ const UI = {
                 <label>Etapenummer</label>
                 <input type="number" id="stage-number" value="${nextStageNumber}">
             </div>
+            <div class="form-group">
+                <label>Etapetype</label>
+                <select id="stage-type">
+                    <option value="flat">Flad etape</option>
+                    <option value="hilly">Kuperet etape</option>
+                    <option value="mountain">Bjergetape</option>
+                </select>
+            </div>
             <button class="btn btn-success" onclick="UI.addStage('${raceId}')">Tilføj Etape</button>
         `);
     },
@@ -828,13 +887,14 @@ const UI = {
     addStage(raceId) {
         const name = document.getElementById('stage-name').value.trim();
         const number = parseInt(document.getElementById('stage-number').value);
+        const stageType = document.getElementById('stage-type').value;
 
         if (!name) {
             alert('Indtast venligst et etapenavn');
             return;
         }
 
-        DataManager.addStage(raceId, name, number);
+        DataManager.addStage(raceId, name, number, stageType);
         this.closeModal();
         this.viewRace(raceId);
     },
@@ -950,6 +1010,7 @@ const UI = {
         const riders = DataManager.getAllRiders();
         const race = DataManager.getRaceById(raceId);
         const stage = race.stages.find(s => s.id === stageId);
+        const stageType = stage.stageType || 'flat';
 
         // Create rider options for dropdowns
         let riderOptions = '<option value="">-- Vælg rytter --</option>';
@@ -959,14 +1020,17 @@ const UI = {
 
         // Build map of existing results by position
         const resultsByPosition = {};
-        stage.results.forEach(result => {
-            resultsByPosition[result.position] = result;
-        });
+        if (stage.results) {
+            stage.results.forEach(result => {
+                resultsByPosition[result.position] = result;
+            });
+        }
 
         // Create rows for each position
         let tableRows = '';
         for (let position = 1; position <= riders.length; position++) {
             const existingResult = resultsByPosition[position];
+            const finishPoints = PointsCalculator.getStageFinishPoints(stageType, position);
             tableRows += `
                 <tr>
                     <td style="text-align: center; font-weight: bold;">${position}.</td>
@@ -982,35 +1046,22 @@ const UI = {
                                placeholder="4:23:15"
                                style="width: 100%; padding: 5px;">
                     </td>
-                    <td>
-                        <input type="number"
-                               id="sprint-${position}"
-                               value="${existingResult ? existingResult.sprintPoints || 0 : 0}"
-                               min="0"
-                               style="width: 100%; padding: 5px;">
-                    </td>
-                    <td>
-                        <input type="number"
-                               id="mountain-${position}"
-                               value="${existingResult ? existingResult.mountainPoints || 0 : 0}"
-                               min="0"
-                               style="width: 100%; padding: 5px;">
-                    </td>
+                    <td style="text-align: center;">${finishPoints}p</td>
                 </tr>
             `;
         }
 
-        this.createModal('Registrer Etape Resultater', `
-            <p style="margin-bottom: 15px;">Vælg rytter og resultater for hver placering. Tom rytter = ingen på den placering.</p>
+        this.createModal('Registrer Etape Målgang', `
+            <p style="margin-bottom: 10px;"><strong>Etapetype:</strong> ${PointsCalculator.getStageTypeName(stageType)}</p>
+            <p style="margin-bottom: 15px; font-size: 0.9em; color: #666;">Vælg rytter og tid for hver placering. Sprint- og bjergpoint registreres separat.</p>
             <div style="max-height: 400px; overflow-y: auto;">
-                <table style="width: 100%; font-size: 0.9rem;">
+                <table style="width: 100%;">
                     <thead>
                         <tr style="position: sticky; top: 0; background: white;">
-                            <th style="text-align: center; padding: 8px; width: 50px;">Plac.</th>
+                            <th style="text-align: center; padding: 8px; width: 60px;">Plac.</th>
                             <th style="text-align: left; padding: 8px;">Rytter</th>
-                            <th style="text-align: left; padding: 8px; width: 100px;">Tid</th>
-                            <th style="text-align: left; padding: 8px; width: 70px;">Sprint</th>
-                            <th style="text-align: left; padding: 8px; width: 70px;">Bjerg</th>
+                            <th style="text-align: left; padding: 8px; width: 120px;">Tid</th>
+                            <th style="text-align: center; padding: 8px; width: 80px;">Sprint P.</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1043,22 +1094,16 @@ const UI = {
         for (let position = 1; position <= riders.length; position++) {
             const riderSelect = document.getElementById(`rider-${position}`);
             const timeInput = document.getElementById(`time-${position}`);
-            const sprintInput = document.getElementById(`sprint-${position}`);
-            const mountainInput = document.getElementById(`mountain-${position}`);
 
             const riderId = riderSelect ? riderSelect.value : '';
             const time = timeInput ? timeInput.value.trim() : '';
-            const sprintPoints = sprintInput ? parseInt(sprintInput.value) || 0 : 0;
-            const mountainPoints = mountainInput ? parseInt(mountainInput.value) || 0 : 0;
 
             // Only add if both rider and time are provided
             if (riderId && time) {
                 results.push({
                     riderId: riderId,
                     time: time,
-                    position: position,
-                    sprintPoints: sprintPoints,
-                    mountainPoints: mountainPoints
+                    position: position
                 });
             }
         }
@@ -1069,6 +1114,277 @@ const UI = {
         }
 
         DataManager.addBatchStageResults(raceId, stageId, results);
+        this.closeModal();
+        this.viewRace(raceId);
+    },
+
+    // Show add mountain form
+    showAddMountain(raceId, stageId) {
+        this.createModal('Tilføj Bjerg', `
+            <div class="form-group">
+                <label>Bjergnavn</label>
+                <input type="text" id="mountain-name" placeholder="f.eks. Col du Tourmalet">
+            </div>
+            <div class="form-group">
+                <label>Kategori</label>
+                <select id="mountain-category">
+                    <option value="cat4">4. kategori (1 point)</option>
+                    <option value="cat3">3. kategori (2, 1 point)</option>
+                    <option value="cat2">2. kategori (5, 3, 2, 1 point)</option>
+                    <option value="cat1">1. kategori (10, 8, 6, 4, 2, 1 point)</option>
+                    <option value="hc">Hors Catégorie (20, 15, 12, 10, 8, 6, 4, 2 point)</option>
+                </select>
+            </div>
+            <button class="btn btn-success" onclick="UI.addMountain('${raceId}', '${stageId}')">Tilføj Bjerg</button>
+        `);
+    },
+
+    // Add mountain
+    addMountain(raceId, stageId) {
+        const name = document.getElementById('mountain-name').value.trim();
+        const category = document.getElementById('mountain-category').value;
+
+        if (!name) {
+            alert('Indtast venligst et bjergnavn');
+            return;
+        }
+
+        DataManager.addMountain(raceId, stageId, name, category);
+        this.closeModal();
+        this.viewRace(raceId);
+    },
+
+    // Show add sprint form
+    showAddSprint(raceId, stageId) {
+        this.createModal('Tilføj Mellemspurt', `
+            <div class="form-group">
+                <label>Spurtnavn</label>
+                <input type="text" id="sprint-name" placeholder="f.eks. Mellemspurt km 45">
+            </div>
+            <button class="btn btn-success" onclick="UI.addSprint('${raceId}', '${stageId}')">Tilføj Spurt</button>
+        `);
+    },
+
+    // Add sprint
+    addSprint(raceId, stageId) {
+        const name = document.getElementById('sprint-name').value.trim();
+
+        if (!name) {
+            alert('Indtast venligst et spurtnavn');
+            return;
+        }
+
+        DataManager.addSprint(raceId, stageId, name);
+        this.closeModal();
+        this.viewRace(raceId);
+    },
+
+    // Show mountain results form
+    showMountainResults(raceId, stageId, mountainId) {
+        const riders = DataManager.getAllRiders();
+        const race = DataManager.getRaceById(raceId);
+        const stage = race.stages.find(s => s.id === stageId);
+        const mountain = stage.mountains.find(m => m.id === mountainId);
+
+        // Get max positions based on category
+        let maxPositions;
+        switch(mountain.category) {
+            case 'cat4': maxPositions = 1; break;
+            case 'cat3': maxPositions = 2; break;
+            case 'cat2': maxPositions = 4; break;
+            case 'cat1': maxPositions = 6; break;
+            case 'hc': maxPositions = 8; break;
+            default: maxPositions = 8;
+        }
+
+        // Create rider options
+        let riderOptions = '<option value="">-- Vælg rytter --</option>';
+        riders.forEach(rider => {
+            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
+        });
+
+        // Build map of existing results by position
+        const resultsByPosition = {};
+        if (mountain.results) {
+            mountain.results.forEach(result => {
+                resultsByPosition[result.position] = result;
+            });
+        }
+
+        // Create rows for each position
+        let tableRows = '';
+        for (let position = 1; position <= maxPositions; position++) {
+            const existingResult = resultsByPosition[position];
+            const points = PointsCalculator.getMountainPoints(mountain.category, position);
+            tableRows += `
+                <tr>
+                    <td style="text-align: center; font-weight: bold;">${position}.</td>
+                    <td>
+                        <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                            ${riderOptions}
+                        </select>
+                    </td>
+                    <td style="text-align: center;">${points} point</td>
+                </tr>
+            `;
+        }
+
+        this.createModal(`${mountain.name} - Resultater`, `
+            <p style="margin-bottom: 15px;"><strong>Kategori:</strong> ${PointsCalculator.getMountainCategoryName(mountain.category)}</p>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table style="width: 100%;">
+                    <thead>
+                        <tr style="position: sticky; top: 0; background: white;">
+                            <th style="text-align: center; padding: 8px; width: 60px;">Plac.</th>
+                            <th style="text-align: left; padding: 8px;">Rytter</th>
+                            <th style="text-align: center; padding: 8px; width: 100px;">Point</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn btn-success" onclick="UI.saveMountainResults('${raceId}', '${stageId}', '${mountainId}')">Gem Resultater</button>
+                <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+            </div>
+        `, () => {
+            // Set selected riders after modal is created
+            for (let position = 1; position <= maxPositions; position++) {
+                const existingResult = resultsByPosition[position];
+                if (existingResult) {
+                    const select = document.getElementById(`rider-${position}`);
+                    if (select) select.value = existingResult.riderId;
+                }
+            }
+        });
+    },
+
+    // Save mountain results
+    saveMountainResults(raceId, stageId, mountainId) {
+        const race = DataManager.getRaceById(raceId);
+        const stage = race.stages.find(s => s.id === stageId);
+        const mountain = stage.mountains.find(m => m.id === mountainId);
+
+        let maxPositions;
+        switch(mountain.category) {
+            case 'cat4': maxPositions = 1; break;
+            case 'cat3': maxPositions = 2; break;
+            case 'cat2': maxPositions = 4; break;
+            case 'cat1': maxPositions = 6; break;
+            case 'hc': maxPositions = 8; break;
+            default: maxPositions = 8;
+        }
+
+        const results = [];
+        for (let position = 1; position <= maxPositions; position++) {
+            const riderSelect = document.getElementById(`rider-${position}`);
+            const riderId = riderSelect ? riderSelect.value : '';
+
+            if (riderId) {
+                results.push({
+                    riderId: riderId,
+                    position: position
+                });
+            }
+        }
+
+        DataManager.addMountainResults(raceId, stageId, mountainId, results);
+        this.closeModal();
+        this.viewRace(raceId);
+    },
+
+    // Show sprint results form
+    showSprintResults(raceId, stageId, sprintId) {
+        const riders = DataManager.getAllRiders();
+        const race = DataManager.getRaceById(raceId);
+        const stage = race.stages.find(s => s.id === stageId);
+        const sprint = stage.sprints.find(s => s.id === sprintId);
+
+        const maxPositions = 15; // Intermediate sprints give points to top 15
+
+        // Create rider options
+        let riderOptions = '<option value="">-- Vælg rytter --</option>';
+        riders.forEach(rider => {
+            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
+        });
+
+        // Build map of existing results by position
+        const resultsByPosition = {};
+        if (sprint.results) {
+            sprint.results.forEach(result => {
+                resultsByPosition[result.position] = result;
+            });
+        }
+
+        // Create rows for each position
+        let tableRows = '';
+        for (let position = 1; position <= maxPositions; position++) {
+            const existingResult = resultsByPosition[position];
+            const points = PointsCalculator.getIntermediateSprintPoints(position);
+            tableRows += `
+                <tr>
+                    <td style="text-align: center; font-weight: bold;">${position}.</td>
+                    <td>
+                        <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                            ${riderOptions}
+                        </select>
+                    </td>
+                    <td style="text-align: center;">${points} point</td>
+                </tr>
+            `;
+        }
+
+        this.createModal(`${sprint.name} - Resultater`, `
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table style="width: 100%; font-size: 0.9em;">
+                    <thead>
+                        <tr style="position: sticky; top: 0; background: white;">
+                            <th style="text-align: center; padding: 8px; width: 50px;">Plac.</th>
+                            <th style="text-align: left; padding: 8px;">Rytter</th>
+                            <th style="text-align: center; padding: 8px; width: 80px;">Point</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn btn-success" onclick="UI.saveSprintResults('${raceId}', '${stageId}', '${sprintId}')">Gem Resultater</button>
+                <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+            </div>
+        `, () => {
+            // Set selected riders after modal is created
+            for (let position = 1; position <= maxPositions; position++) {
+                const existingResult = resultsByPosition[position];
+                if (existingResult) {
+                    const select = document.getElementById(`rider-${position}`);
+                    if (select) select.value = existingResult.riderId;
+                }
+            }
+        });
+    },
+
+    // Save sprint results
+    saveSprintResults(raceId, stageId, sprintId) {
+        const maxPositions = 15;
+        const results = [];
+
+        for (let position = 1; position <= maxPositions; position++) {
+            const riderSelect = document.getElementById(`rider-${position}`);
+            const riderId = riderSelect ? riderSelect.value : '';
+
+            if (riderId) {
+                results.push({
+                    riderId: riderId,
+                    position: position
+                });
+            }
+        }
+
+        DataManager.addSprintResults(raceId, stageId, sprintId, results);
         this.closeModal();
         this.viewRace(raceId);
     },
