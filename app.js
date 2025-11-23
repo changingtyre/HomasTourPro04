@@ -40,6 +40,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (currentGame) {
         console.log('Loading game dashboard for:', currentGame.name);
+
+        // Recalculate all world tour points to fix any old data
+        console.log('Recalculating all world tour points...');
+        DataManager.recalculateAllRaces();
+
         UI.showGameDashboard();
     } else {
         console.log('No current game, showing home screen');

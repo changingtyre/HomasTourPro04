@@ -473,6 +473,30 @@ const DataManager = {
         this.saveData(data);
     },
 
+    // Recalculate all races (used on startup to fix old data)
+    recalculateAllRaces() {
+        const data = this.getData();
+
+        if (!data.currentGameId) return;
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return;
+
+        console.log('Recalculating all races for game:', game.name);
+
+        // Recalculate all stage race classifications
+        game.races.forEach(race => {
+            if (race.raceFormat === 'stage' && race.stages.length > 0) {
+                console.log('Recalculating stage race:', race.name);
+                this.recalculateClassifications(race.id);
+            }
+        });
+
+        // Recalculate world tour points for all races
+        this.recalculateWorldTourPoints();
+
+        console.log('All races recalculated successfully');
+    },
+
     // Recalculate all world tour points
     recalculateWorldTourPoints() {
         const data = this.getData();
