@@ -704,7 +704,11 @@ const UI = {
                 html += `<div style="margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px;">`;
                 html += `<div class="flex-between">`;
                 html += `<div>`;
-                html += `<h3>${stage.name} <span style="font-size: 0.8em; color: #666;">(${PointsCalculator.getStageTypeName(stageType)})</span></h3>`;
+                html += `<h3>${stage.name} <span style="font-size: 0.8em; color: #666;">(${PointsCalculator.getStageTypeName(stageType)})</span>`;
+                if (stage.finishOnMountain && stage.finishMountainCategory) {
+                    html += ` <span style="font-size: 0.8em; color: #c0392b;">🏔️ Slutter på ${PointsCalculator.getMountainCategoryName(stage.finishMountainCategory)}</span>`;
+                }
+                html += `</h3>`;
                 html += `</div>`;
                 html += `<div style="display: flex; gap: 8px; flex-wrap: wrap;">`;
                 html += `<button class="btn btn-secondary" onclick="UI.showAddMountain('${race.id}', '${stage.id}')">➕ Bjerg</button>`;
@@ -762,15 +766,30 @@ const UI = {
                 if (stage.results && stage.results.length > 0) {
                     const sortedResults = [...stage.results].sort((a, b) => a.position - b.position);
                     html += '<table style="margin-top: 10px; font-size: 0.9em;">';
-                    html += '<tr><th>Pos.</th><th>Rytter</th><th>Tid</th><th>Etape WT Point</th></tr>';
+
+                    // Add mountain column if stage finishes on mountain
+                    if (stage.finishOnMountain && stage.finishMountainCategory) {
+                        html += '<tr><th>Pos.</th><th>Rytter</th><th>Tid</th><th>Sprint P.</th><th>Bjerg P.</th><th>Etape WT P.</th></tr>';
+                    } else {
+                        html += '<tr><th>Pos.</th><th>Rytter</th><th>Tid</th><th>Sprint P.</th><th>Etape WT P.</th></tr>';
+                    }
+
                     sortedResults.forEach(result => {
                         const rider = DataManager.getRiderById(result.riderId);
-                        const points = PointsCalculator.getStagePoints(race.type, result.position);
+                        const wtPoints = PointsCalculator.getStagePoints(race.type, result.position);
+                        const sprintPoints = PointsCalculator.getStageFinishPoints(stage.stageType || 'flat', result.position);
                         html += '<tr>';
                         html += `<td>${result.position}</td>`;
                         html += `<td>${rider ? rider.name : 'Ukendt'}</td>`;
                         html += `<td>${result.time}</td>`;
-                        html += `<td>${points}</td>`;
+                        html += `<td>${sprintPoints}p</td>`;
+
+                        if (stage.finishOnMountain && stage.finishMountainCategory) {
+                            const mountainPoints = PointsCalculator.getMountainPoints(stage.finishMountainCategory, result.position);
+                            html += `<td>${mountainPoints}p</td>`;
+                        }
+
+                        html += `<td>${wtPoints}</td>`;
                         html += '</tr>';
                     });
                     html += '</table>';
@@ -909,6 +928,22 @@ const UI = {
                     <option value="mountain">Bjergetape</option>
                 </select>
             </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="finish-on-mountain" onchange="document.getElementById('mountain-category-group').style.display = this.checked ? 'block' : 'none'">
+                    Etapen slutter på et bjerg
+                </label>
+            </div>
+            <div class="form-group" id="mountain-category-group" style="display: none; margin-left: 20px;">
+                <label>Bjergkategori ved mål</label>
+                <select id="finish-mountain-category">
+                    <option value="cat4">4. kategori (1 point)</option>
+                    <option value="cat3">3. kategori (2, 1 point)</option>
+                    <option value="cat2">2. kategori (5, 3, 2, 1 point)</option>
+                    <option value="cat1">1. kategori (10, 8, 6, 4, 2, 1 point)</option>
+                    <option value="hc">Hors Catégorie (20, 15, 12, 10, 8, 6, 4, 2 point)</option>
+                </select>
+            </div>
             <button class="btn btn-success" onclick="UI.addStage('${raceId}')">Tilføj Etape</button>
         `);
     },
@@ -918,13 +953,15 @@ const UI = {
         const name = document.getElementById('stage-name').value.trim();
         const number = parseInt(document.getElementById('stage-number').value);
         const stageType = document.getElementById('stage-type').value;
+        const finishOnMountain = document.getElementById('finish-on-mountain').checked;
+        const finishMountainCategory = finishOnMountain ? document.getElementById('finish-mountain-category').value : null;
 
         if (!name) {
             alert('Indtast venligst et etapenavn');
             return;
         }
 
-        DataManager.addStage(raceId, name, number, stageType);
+        DataManager.addStage(raceId, name, number, stageType, finishOnMountain, finishMountainCategory);
         this.closeModal();
         this.viewRace(raceId);
     },

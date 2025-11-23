@@ -245,7 +245,7 @@ const DataManager = {
     },
 
     // Add stage to race
-    addStage(raceId, stageName, stageNumber, stageType = 'flat') {
+    addStage(raceId, stageName, stageNumber, stageType = 'flat', finishOnMountain = false, finishMountainCategory = null) {
         const data = this.getData();
 
         if (!data.currentGameId) return null;
@@ -260,6 +260,8 @@ const DataManager = {
             name: stageName,
             stageNumber: stageNumber,
             stageType: stageType, // 'flat', 'hilly', or 'mountain'
+            finishOnMountain: finishOnMountain, // true if stage finishes on a mountain
+            finishMountainCategory: finishMountainCategory, // 'cat4', 'cat3', 'cat2', 'cat1', or 'hc'
             results: [],
             mountains: [], // Array of {id, name, category, results: [{riderId, position}]}
             sprints: [] // Array of {id, name, results: [{riderId, position}]}
@@ -568,7 +570,7 @@ const DataManager = {
         // Calculate mountain classification (mountain points)
         const mountainMap = new Map();
         race.stages.forEach(stage => {
-            // Points from mountains
+            // Points from mountains during the stage
             if (stage.mountains) {
                 stage.mountains.forEach(mountain => {
                     if (mountain.results) {
@@ -578,6 +580,15 @@ const DataManager = {
                             mountainMap.set(result.riderId, currentPoints + mountainPoints);
                         });
                     }
+                });
+            }
+
+            // Points from stage finish if it's on a mountain
+            if (stage.finishOnMountain && stage.finishMountainCategory && stage.results && stage.results.length > 0) {
+                stage.results.forEach(result => {
+                    const mountainPoints = PointsCalculator.getMountainPoints(stage.finishMountainCategory, result.position);
+                    const currentPoints = mountainMap.get(result.riderId) || 0;
+                    mountainMap.set(result.riderId, currentPoints + mountainPoints);
                 });
             }
         });
