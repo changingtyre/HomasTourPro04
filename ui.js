@@ -1150,6 +1150,7 @@ const UI = {
 
     // Show add mountain form
     showAddMountain(raceId, stageId) {
+        console.log('showAddMountain called with:', raceId, stageId);
         this.createModal('Tilføj Bjerg', `
             <div class="form-group">
                 <label>Bjergnavn</label>
@@ -1186,6 +1187,7 @@ const UI = {
 
     // Show add sprint form
     showAddSprint(raceId, stageId) {
+        console.log('showAddSprint called with:', raceId, stageId);
         this.createModal('Tilføj Mellemspurt', `
             <div class="form-group">
                 <label>Spurtnavn</label>
