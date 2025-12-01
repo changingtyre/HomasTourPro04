@@ -507,6 +507,10 @@ const UI = {
                 <input type="text" id="race-name" placeholder="f.eks. Tour de France 2024">
             </div>
             <div class="form-group">
+                <label>Dato</label>
+                <input type="date" id="race-date" required>
+            </div>
+            <div class="form-group">
                 <label>Løbstype</label>
                 <select id="race-type">
                     <option value="tour-de-france">Tour de France</option>
@@ -532,6 +536,7 @@ const UI = {
     createRace() {
         try {
             const name = document.getElementById('race-name').value.trim();
+            const date = document.getElementById('race-date').value;
             const type = document.getElementById('race-type').value;
             const format = document.getElementById('race-format').value;
 
@@ -540,7 +545,12 @@ const UI = {
                 return;
             }
 
-            const race = DataManager.createRace(name, type, format);
+            if (!date) {
+                alert('Indtast venligst en dato for løbet');
+                return;
+            }
+
+            const race = DataManager.createRace(name, type, format, date);
             this.closeModal();
 
             // Small delay to ensure modal is fully closed before navigating

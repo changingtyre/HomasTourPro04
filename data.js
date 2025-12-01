@@ -199,8 +199,8 @@ const DataManager = {
     },
 
     // Create race
-    createRace(raceName, raceType, raceFormat) {
-        console.log('DataManager.createRace called with:', raceName, raceType, raceFormat);
+    createRace(raceName, raceType, raceFormat, raceDate) {
+        console.log('DataManager.createRace called with:', raceName, raceType, raceFormat, raceDate);
         const data = this.getData();
         console.log('Current data:', data);
 
@@ -223,7 +223,7 @@ const DataManager = {
             name: raceName,
             type: raceType, // 'tour-de-france', 'giro', 'vuelta', 'monument', 'worldcup-major', 'worldcup-other'
             raceFormat: raceFormat, // 'one-day' or 'stage'
-            createdDate: new Date().toISOString(),
+            createdDate: raceDate ? new Date(raceDate).toISOString() : new Date().toISOString(),
             stages: raceFormat === 'stage' ? [] : null,
             results: raceFormat === 'one-day' ? [] : null,
             generalClassification: raceFormat === 'stage' ? [] : null,
