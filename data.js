@@ -297,10 +297,12 @@ const DataManager = {
         };
         stage.results.push(result);
 
-        // Recalculate classifications
+        // Save stage result first
+        this.saveData(data);
+
+        // Recalculate classifications (this will load, update, and save the data)
         this.recalculateClassifications(raceId);
 
-        this.saveData(data);
         return result;
     },
 
@@ -332,10 +334,12 @@ const DataManager = {
             }
         });
 
-        // Recalculate classifications
+        // Save stage results first
+        this.saveData(data);
+
+        // Recalculate classifications (this will load, update, and save the data)
         this.recalculateClassifications(raceId);
 
-        this.saveData(data);
         return stage.results;
     },
 
@@ -479,8 +483,12 @@ const DataManager = {
 
         mountain.results = results; // [{riderId, position}]
 
-        this.recalculateClassifications(raceId);
+        // Save mountain results first
         this.saveData(data);
+
+        // Recalculate classifications (this will load, update, and save the data)
+        this.recalculateClassifications(raceId);
+
         return mountain.results;
     },
 
@@ -503,8 +511,12 @@ const DataManager = {
 
         sprint.results = results; // [{riderId, position}]
 
-        this.recalculateClassifications(raceId);
+        // Save sprint results first
         this.saveData(data);
+
+        // Recalculate classifications (this will load, update, and save the data)
+        this.recalculateClassifications(raceId);
+
         return sprint.results;
     },
 
