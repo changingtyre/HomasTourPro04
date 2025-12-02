@@ -216,7 +216,10 @@ const UI = {
             game.players.forEach(player => {
                 const playerTeams = game.teams.filter(t => t.playerId === player.id);
                 html += '<div class="card" style="margin-bottom: 20px;">';
+                html += '<div class="flex-between">';
                 html += `<h3>${player.name}</h3>`;
+                html += `<button class="btn btn-secondary" onclick="UI.showEditPlayer('${player.id}')">✏️ Rediger</button>`;
+                html += '</div>';
 
                 if (playerTeams.length === 0) {
                     html += '<p>Ingen hold endnu.</p>';
@@ -226,18 +229,22 @@ const UI = {
                         html += `<div style="margin-top: 15px;">`;
                         html += `<div class="flex-between">`;
                         html += `<h4>🚴 ${team.name}</h4>`;
+                        html += `<div>`;
+                        html += `<button class="btn btn-secondary" onclick="UI.showEditTeam('${team.id}')" style="margin-right: 5px;">✏️ Rediger</button>`;
                         html += `<button class="btn btn-secondary" onclick="UI.showAddRider('${team.id}')">Tilføj Rytter</button>`;
+                        html += `</div>`;
                         html += `</div>`;
 
                         if (team.riders.length > 0) {
                             html += '<table style="margin-top: 10px;">';
-                            html += '<tr><th>Rytter</th><th>World Tour Point</th><th>Sejre</th></tr>';
+                            html += '<tr><th>Rytter</th><th>World Tour Point</th><th>Sejre</th><th>Handlinger</th></tr>';
                             team.riders.forEach(rider => {
                                 const standing = game.riderStandings.find(r => r.riderId === rider.id) || { worldTourPoints: 0, wins: 0 };
                                 html += '<tr>';
                                 html += `<td>${rider.name}</td>`;
                                 html += `<td>${standing.worldTourPoints}</td>`;
                                 html += `<td>${standing.wins}</td>`;
+                                html += `<td><button class="btn btn-secondary" onclick="UI.showEditRider('${rider.id}')">✏️ Rediger</button></td>`;
                                 html += '</tr>';
                             });
                             html += '</table>';
@@ -496,6 +503,126 @@ const UI = {
         } catch (error) {
             console.error('Error adding rider:', error);
             alert('Fejl ved tilføjelse af rytter: ' + error.message);
+        }
+    },
+
+    // Show edit player form
+    showEditPlayer(playerId) {
+        const player = DataManager.getPlayerById(playerId);
+        if (!player) {
+            alert('Spiller ikke fundet!');
+            return;
+        }
+
+        const modal = this.createModal('Rediger Spiller', `
+            <div class="form-group">
+                <label>Spillernavn</label>
+                <input type="text" id="edit-player-name" value="${player.name}">
+            </div>
+            <button class="btn btn-success" onclick="UI.editPlayer('${playerId}')">Gem Ændringer</button>
+        `);
+    },
+
+    // Edit player
+    editPlayer(playerId) {
+        try {
+            const name = document.getElementById('edit-player-name').value.trim();
+
+            if (!name) {
+                alert('Indtast venligst et spillernavn');
+                return;
+            }
+
+            DataManager.updatePlayer(playerId, name);
+            this.closeModal();
+
+            setTimeout(() => {
+                this.showGameDashboard();
+                this.showTab('players');
+            }, 50);
+        } catch (error) {
+            console.error('Error editing player:', error);
+            alert('Fejl ved redigering af spiller: ' + error.message);
+        }
+    },
+
+    // Show edit team form
+    showEditTeam(teamId) {
+        const team = DataManager.getTeamById(teamId);
+        if (!team) {
+            alert('Hold ikke fundet!');
+            return;
+        }
+
+        const modal = this.createModal('Rediger Hold', `
+            <div class="form-group">
+                <label>Holdnavn</label>
+                <input type="text" id="edit-team-name" value="${team.name}">
+            </div>
+            <button class="btn btn-success" onclick="UI.editTeam('${teamId}')">Gem Ændringer</button>
+        `);
+    },
+
+    // Edit team
+    editTeam(teamId) {
+        try {
+            const name = document.getElementById('edit-team-name').value.trim();
+
+            if (!name) {
+                alert('Indtast venligst et holdnavn');
+                return;
+            }
+
+            DataManager.updateTeam(teamId, name);
+            this.closeModal();
+
+            setTimeout(() => {
+                this.showGameDashboard();
+                this.showTab('players');
+            }, 50);
+        } catch (error) {
+            console.error('Error editing team:', error);
+            alert('Fejl ved redigering af hold: ' + error.message);
+        }
+    },
+
+    // Show edit rider form
+    showEditRider(riderId) {
+        const rider = DataManager.getRiderById(riderId);
+        if (!rider) {
+            alert('Rytter ikke fundet!');
+            return;
+        }
+
+        const modal = this.createModal('Rediger Rytter', `
+            <div class="form-group">
+                <label>Rytternavn</label>
+                <input type="text" id="edit-rider-name" value="${rider.name}">
+            </div>
+            <button class="btn btn-success" onclick="UI.editRider('${riderId}')">Gem Ændringer</button>
+        `);
+    },
+
+    // Edit rider
+    editRider(riderId) {
+        try {
+            const name = document.getElementById('edit-rider-name').value.trim();
+
+            if (!name) {
+                alert('Indtast venligst et rytternavn');
+                return;
+            }
+
+            DataManager.updateRider(riderId, name);
+            this.closeModal();
+
+            setTimeout(() => {
+                this.showGameDashboard();
+                this.showTab('players');
+            }, 50);
+        } catch (error) {
+            console.error('Error editing rider:', error);
+            alert('Fejl ved redigering af rytter: ' + error.message);
         }
     },
 

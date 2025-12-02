@@ -198,6 +198,58 @@ const DataManager = {
         return rider;
     },
 
+    // Update player name
+    updatePlayer(playerId, newName) {
+        const data = this.getData();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return null;
+
+        const player = game.players.find(p => p.id === playerId);
+        if (!player) return null;
+
+        player.name = newName;
+        this.saveData(data);
+        return player;
+    },
+
+    // Update team name
+    updateTeam(teamId, newName) {
+        const data = this.getData();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return null;
+
+        const team = game.teams.find(t => t.id === teamId);
+        if (!team) return null;
+
+        team.name = newName;
+        this.saveData(data);
+        return team;
+    },
+
+    // Update rider name
+    updateRider(riderId, newName) {
+        const data = this.getData();
+
+        if (!data.currentGameId) return null;
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return null;
+
+        // Find the rider in any team
+        for (const team of game.teams) {
+            const rider = team.riders.find(r => r.id === riderId);
+            if (rider) {
+                rider.name = newName;
+                this.saveData(data);
+                return rider;
+            }
+        }
+        return null;
+    },
+
     // Create race
     createRace(raceName, raceType, raceFormat, raceDate) {
         console.log('DataManager.createRace called with:', raceName, raceType, raceFormat, raceDate);
