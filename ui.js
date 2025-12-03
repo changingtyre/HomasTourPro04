@@ -216,7 +216,13 @@ const UI = {
             game.players.forEach(player => {
                 const playerTeams = game.teams.filter(t => t.playerId === player.id);
                 html += '<div class="card" style="margin-bottom: 20px;">';
+                html += `<div class="flex-between" style="align-items: center;">`;
                 html += `<h3>${player.name}</h3>`;
+                html += `<div>`;
+                html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.showEditPlayer('${player.id}', '${player.name.replace(/'/g, "\\'")}')">✏️ Rediger</button>`;
+                html += `<button class="btn btn-danger" onclick="UI.confirmDeletePlayer('${player.id}', '${player.name.replace(/'/g, "\\'")}')">🗑️ Slet</button>`;
+                html += `</div>`;
+                html += `</div>`;
 
                 if (playerTeams.length === 0) {
                     html += '<p>Ingen hold endnu.</p>';
@@ -226,18 +232,26 @@ const UI = {
                         html += `<div style="margin-top: 15px;">`;
                         html += `<div class="flex-between">`;
                         html += `<h4>🚴 ${team.name}</h4>`;
-                        html += `<button class="btn btn-secondary" onclick="UI.showAddRider('${team.id}')">Tilføj Rytter</button>`;
+                        html += `<div>`;
+                        html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.showAddRider('${team.id}')">Tilføj Rytter</button>`;
+                        html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.showEditTeam('${team.id}', '${team.name.replace(/'/g, "\\'")}')">✏️ Rediger</button>`;
+                        html += `<button class="btn btn-danger" onclick="UI.confirmDeleteTeam('${team.id}', '${team.name.replace(/'/g, "\\'")}')">🗑️ Slet</button>`;
+                        html += `</div>`;
                         html += `</div>`;
 
                         if (team.riders.length > 0) {
                             html += '<table style="margin-top: 10px;">';
-                            html += '<tr><th>Rytter</th><th>World Tour Point</th><th>Sejre</th></tr>';
+                            html += '<tr><th>Rytter</th><th>World Tour Point</th><th>Sejre</th><th>Handlinger</th></tr>';
                             team.riders.forEach(rider => {
                                 const standing = game.riderStandings.find(r => r.riderId === rider.id) || { worldTourPoints: 0, wins: 0 };
                                 html += '<tr>';
                                 html += `<td>${rider.name}</td>`;
                                 html += `<td>${standing.worldTourPoints}</td>`;
                                 html += `<td>${standing.wins}</td>`;
+                                html += `<td>`;
+                                html += `<button class="btn btn-secondary" style="margin-right: 5px; font-size: 0.8em; padding: 4px 8px;" onclick="UI.showEditRider('${rider.id}', '${rider.name.replace(/'/g, "\\'")}')">✏️</button>`;
+                                html += `<button class="btn btn-danger" style="font-size: 0.8em; padding: 4px 8px;" onclick="UI.confirmDeleteRider('${rider.id}', '${rider.name.replace(/'/g, "\\'")}')">🗑️</button>`;
+                                html += `</td>`;
                                 html += '</tr>';
                             });
                             html += '</table>';
@@ -496,6 +510,141 @@ const UI = {
         } catch (error) {
             console.error('Error adding rider:', error);
             alert('Fejl ved tilføjelse af rytter: ' + error.message);
+        }
+    },
+
+    // Edit player
+    showEditPlayer(playerId, currentName) {
+        this.showModal(`
+            <h2>Rediger Spiller</h2>
+            <div class="form-group">
+                <label>Nyt navn</label>
+                <input type="text" id="edit-player-name" value="${currentName}" placeholder="Spillernavn">
+                <input type="hidden" id="edit-player-id" value="${playerId}">
+            </div>
+            <button class="btn btn-success" onclick="UI.editPlayer()">Gem</button>
+            <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+        `);
+    },
+
+    editPlayer() {
+        const playerId = document.getElementById('edit-player-id').value;
+        const newName = document.getElementById('edit-player-name').value.trim();
+
+        if (!newName) {
+            alert('Indtast venligst et navn');
+            return;
+        }
+
+        if (DataManager.editPlayer(playerId, newName)) {
+            this.closeModal();
+            setTimeout(() => {
+                this.showGameDashboard();
+                this.showTab('players');
+            }, 50);
+        } else {
+            alert('Fejl ved redigering af spiller');
+        }
+    },
+
+    confirmDeletePlayer(playerId, playerName) {
+        if (confirm(`Er du sikker på at du vil slette spilleren "${playerName}"?\n\nDette vil også slette alle spillerens hold og ryttere.`)) {
+            if (DataManager.deletePlayer(playerId)) {
+                this.showGameDashboard();
+                this.showTab('players');
+            } else {
+                alert('Fejl ved sletning af spiller');
+            }
+        }
+    },
+
+    // Edit team
+    showEditTeam(teamId, currentName) {
+        this.showModal(`
+            <h2>Rediger Hold</h2>
+            <div class="form-group">
+                <label>Nyt navn</label>
+                <input type="text" id="edit-team-name" value="${currentName}" placeholder="Holdnavn">
+                <input type="hidden" id="edit-team-id" value="${teamId}">
+            </div>
+            <button class="btn btn-success" onclick="UI.editTeam()">Gem</button>
+            <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+        `);
+    },
+
+    editTeam() {
+        const teamId = document.getElementById('edit-team-id').value;
+        const newName = document.getElementById('edit-team-name').value.trim();
+
+        if (!newName) {
+            alert('Indtast venligst et navn');
+            return;
+        }
+
+        if (DataManager.editTeam(teamId, newName)) {
+            this.closeModal();
+            setTimeout(() => {
+                this.showGameDashboard();
+                this.showTab('players');
+            }, 50);
+        } else {
+            alert('Fejl ved redigering af hold');
+        }
+    },
+
+    confirmDeleteTeam(teamId, teamName) {
+        if (confirm(`Er du sikker på at du vil slette holdet "${teamName}"?\n\nDette vil også slette alle holdets ryttere.`)) {
+            if (DataManager.deleteTeam(teamId)) {
+                this.showGameDashboard();
+                this.showTab('players');
+            } else {
+                alert('Fejl ved sletning af hold');
+            }
+        }
+    },
+
+    // Edit rider
+    showEditRider(riderId, currentName) {
+        this.showModal(`
+            <h2>Rediger Rytter</h2>
+            <div class="form-group">
+                <label>Nyt navn</label>
+                <input type="text" id="edit-rider-name" value="${currentName}" placeholder="Rytternavn">
+                <input type="hidden" id="edit-rider-id" value="${riderId}">
+            </div>
+            <button class="btn btn-success" onclick="UI.editRider()">Gem</button>
+            <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+        `);
+    },
+
+    editRider() {
+        const riderId = document.getElementById('edit-rider-id').value;
+        const newName = document.getElementById('edit-rider-name').value.trim();
+
+        if (!newName) {
+            alert('Indtast venligst et navn');
+            return;
+        }
+
+        if (DataManager.editRider(riderId, newName)) {
+            this.closeModal();
+            setTimeout(() => {
+                this.showGameDashboard();
+                this.showTab('players');
+            }, 50);
+        } else {
+            alert('Fejl ved redigering af rytter');
+        }
+    },
+
+    confirmDeleteRider(riderId, riderName) {
+        if (confirm(`Er du sikker på at du vil slette rytteren "${riderName}"?`)) {
+            if (DataManager.deleteRider(riderId)) {
+                this.showGameDashboard();
+                this.showTab('players');
+            } else {
+                alert('Fejl ved sletning af rytter');
+            }
         }
     },
 

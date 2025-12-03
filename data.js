@@ -198,6 +198,128 @@ const DataManager = {
         return rider;
     },
 
+    // Delete player
+    deletePlayer(playerId) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        // Delete all teams belonging to this player (and their riders)
+        const playerTeams = game.teams.filter(t => t.playerId === playerId);
+        playerTeams.forEach(team => {
+            this.deleteTeam(team.id);
+        });
+
+        // Remove player
+        game.players = game.players.filter(p => p.id !== playerId);
+
+        this.saveData(data);
+        return true;
+    },
+
+    // Edit player name
+    editPlayer(playerId, newName) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const player = game.players.find(p => p.id === playerId);
+        if (!player) return false;
+
+        player.name = newName;
+        this.saveData(data);
+        return true;
+    },
+
+    // Delete team
+    deleteTeam(teamId) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const team = game.teams.find(t => t.id === teamId);
+        if (!team) return false;
+
+        // Delete all riders in this team
+        team.riders.forEach(rider => {
+            // Remove rider standings
+            game.riderStandings = game.riderStandings.filter(r => r.riderId !== rider.id);
+        });
+
+        // Remove team standings
+        game.teamStandings = game.teamStandings.filter(t => t.teamId !== teamId);
+
+        // Remove team
+        game.teams = game.teams.filter(t => t.id !== teamId);
+
+        this.saveData(data);
+        return true;
+    },
+
+    // Edit team name
+    editTeam(teamId, newName) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const team = game.teams.find(t => t.id === teamId);
+        if (!team) return false;
+
+        team.name = newName;
+        this.saveData(data);
+        return true;
+    },
+
+    // Delete rider
+    deleteRider(riderId) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        // Find which team the rider belongs to
+        const team = game.teams.find(t => t.riders.some(r => r.id === riderId));
+        if (!team) return false;
+
+        // Remove rider from team
+        team.riders = team.riders.filter(r => r.id !== riderId);
+
+        // Remove rider standings
+        game.riderStandings = game.riderStandings.filter(r => r.riderId !== riderId);
+
+        this.saveData(data);
+        return true;
+    },
+
+    // Edit rider name
+    editRider(riderId, newName) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        // Find which team the rider belongs to
+        const team = game.teams.find(t => t.riders.some(r => r.id === riderId));
+        if (!team) return false;
+
+        const rider = team.riders.find(r => r.id === riderId);
+        if (!rider) return false;
+
+        rider.name = newName;
+        this.saveData(data);
+        return true;
+    },
+
     // Create race
     createRace(raceName, raceType, raceFormat) {
         console.log('DataManager.createRace called with:', raceName, raceType, raceFormat);
