@@ -2,6 +2,10 @@
 const UI = {
     mainContent: null,
     currentGameInfo: null,
+    sortState: {
+        riderStandings: { column: 'points', direction: 'desc' },
+        teamStandings: { column: 'points', direction: 'desc' }
+    },
 
     init() {
         this.mainContent = document.getElementById('main-content');
@@ -25,10 +29,11 @@ const UI = {
             html += '<h2>Dine Spil</h2>';
             html += '<div class="grid grid-2">';
             data.games.forEach(game => {
-                html += `<div class="game-card" onclick="UI.selectGame('${game.id}')">`;
+                html += `<div class="game-card" onclick="UI.selectGame('${game.id}')" style="position: relative; cursor: pointer;">`;
                 html += `<h3>${game.name}</h3>`;
                 html += `<p>${game.players.length} spillere | ${game.teams.length} hold | ${game.races.length} løb</p>`;
                 html += `<small>Oprettet: ${new Date(game.createdDate).toLocaleDateString('da-DK')}</small>`;
+                html += `<button class="btn btn-danger" onclick="event.stopPropagation(); UI.confirmDeleteGame('${game.id}', '${game.name.replace(/'/g, "\\'")}');" style="position: absolute; top: 10px; right: 10px; padding: 5px 10px; font-size: 0.8em;">🗑️ Slet</button>`;
                 html += '</div>';
             });
             html += '</div>';
@@ -70,6 +75,14 @@ const UI = {
     selectGame(gameId) {
         DataManager.setCurrentGame(gameId);
         this.showGameDashboard();
+    },
+
+    // Confirm delete game
+    confirmDeleteGame(gameId, gameName) {
+        if (confirm(`Er du sikker på at du vil slette spillet "${gameName}"?\n\nDette vil slette ALLE spillere, hold, ryttere, løb og resultater.\n\nDette kan IKKE fortrydes!`)) {
+            DataManager.deleteGame(gameId);
+            this.showHome();
+        }
     },
 
     // Show game dashboard
@@ -418,9 +431,52 @@ const UI = {
         if (game.riderStandings.length === 0) {
             html += '<p>Ingen data endnu.</p>';
         } else {
-            const sortedRiders = [...game.riderStandings].sort((a, b) => b.worldTourPoints - a.worldTourPoints);
+            // Sort riders based on current sort state
+            const sortCol = this.sortState.riderStandings.column;
+            const sortDir = this.sortState.riderStandings.direction;
+
+            const sortedRiders = [...game.riderStandings].sort((a, b) => {
+                const riderA = DataManager.getRiderById(a.riderId);
+                const riderB = DataManager.getRiderById(b.riderId);
+
+                let valA, valB;
+                if (sortCol === 'name') {
+                    valA = riderA ? riderA.name : '';
+                    valB = riderB ? riderB.name : '';
+                    return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (sortCol === 'team') {
+                    const teamA = riderA ? DataManager.getTeamById(riderA.teamId) : null;
+                    const teamB = riderB ? DataManager.getTeamById(riderB.teamId) : null;
+                    valA = teamA ? teamA.name : '';
+                    valB = teamB ? teamB.name : '';
+                    return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (sortCol === 'points') {
+                    valA = a.worldTourPoints;
+                    valB = b.worldTourPoints;
+                } else if (sortCol === 'wins') {
+                    valA = a.wins;
+                    valB = b.wins;
+                }
+
+                return sortDir === 'asc' ? valA - valB : valB - valA;
+            });
+
+            const arrow = (col) => {
+                if (this.sortState.riderStandings.column === col) {
+                    return this.sortState.riderStandings.direction === 'asc' ? ' ↑' : ' ↓';
+                }
+                return '';
+            };
+
             html += '<table>';
-            html += '<tr><th>Position</th><th>Rytter</th><th>Hold</th><th>World Tour Point</th><th>Sejre</th></tr>';
+            html += '<tr>';
+            html += '<th>Position</th>';
+            html += `<th style="cursor: pointer;" onclick="UI.sortRiderStandings('name')">Rytter${arrow('name')}</th>`;
+            html += `<th style="cursor: pointer;" onclick="UI.sortRiderStandings('team')">Hold${arrow('team')}</th>`;
+            html += `<th style="cursor: pointer;" onclick="UI.sortRiderStandings('points')">World Tour Point${arrow('points')}</th>`;
+            html += `<th style="cursor: pointer;" onclick="UI.sortRiderStandings('wins')">Sejre${arrow('wins')}</th>`;
+            html += '</tr>';
+
             sortedRiders.forEach((standing, index) => {
                 const rider = DataManager.getRiderById(standing.riderId);
                 const team = rider ? DataManager.getTeamById(rider.teamId) : null;
@@ -442,9 +498,48 @@ const UI = {
         if (game.teamStandings.length === 0) {
             html += '<p>Ingen data endnu.</p>';
         } else {
-            const sortedTeams = [...game.teamStandings].sort((a, b) => b.worldTourPoints - a.worldTourPoints);
+            // Sort teams based on current sort state
+            const sortCol = this.sortState.teamStandings.column;
+            const sortDir = this.sortState.teamStandings.direction;
+
+            const sortedTeams = [...game.teamStandings].sort((a, b) => {
+                const teamA = DataManager.getTeamById(a.teamId);
+                const teamB = DataManager.getTeamById(b.teamId);
+
+                let valA, valB;
+                if (sortCol === 'name') {
+                    valA = teamA ? teamA.name : '';
+                    valB = teamB ? teamB.name : '';
+                    return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (sortCol === 'player') {
+                    const playerA = teamA ? DataManager.getPlayerById(teamA.playerId) : null;
+                    const playerB = teamB ? DataManager.getPlayerById(teamB.playerId) : null;
+                    valA = playerA ? playerA.name : '';
+                    valB = playerB ? playerB.name : '';
+                    return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (sortCol === 'points') {
+                    valA = a.worldTourPoints;
+                    valB = b.worldTourPoints;
+                }
+
+                return sortDir === 'asc' ? valA - valB : valB - valA;
+            });
+
+            const arrow = (col) => {
+                if (this.sortState.teamStandings.column === col) {
+                    return this.sortState.teamStandings.direction === 'asc' ? ' ↑' : ' ↓';
+                }
+                return '';
+            };
+
             html += '<table>';
-            html += '<tr><th>Position</th><th>Hold</th><th>Spiller</th><th>World Tour Point</th></tr>';
+            html += '<tr>';
+            html += '<th>Position</th>';
+            html += `<th style="cursor: pointer;" onclick="UI.sortTeamStandings('name')">Hold${arrow('name')}</th>`;
+            html += `<th style="cursor: pointer;" onclick="UI.sortTeamStandings('player')">Spiller${arrow('player')}</th>`;
+            html += `<th style="cursor: pointer;" onclick="UI.sortTeamStandings('points')">World Tour Point${arrow('points')}</th>`;
+            html += '</tr>';
+
             sortedTeams.forEach((standing, index) => {
                 const team = DataManager.getTeamById(standing.teamId);
                 const player = team ? DataManager.getPlayerById(team.playerId) : null;
@@ -460,6 +555,36 @@ const UI = {
         html += '</div>';
 
         container.innerHTML = html;
+    },
+
+    // Sort rider standings
+    sortRiderStandings(column) {
+        if (this.sortState.riderStandings.column === column) {
+            // Toggle direction
+            this.sortState.riderStandings.direction =
+                this.sortState.riderStandings.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            // New column, default to descending
+            this.sortState.riderStandings.column = column;
+            this.sortState.riderStandings.direction = column === 'name' || column === 'team' ? 'asc' : 'desc';
+        }
+        this.showGameDashboard();
+        this.showTab('standings');
+    },
+
+    // Sort team standings
+    sortTeamStandings(column) {
+        if (this.sortState.teamStandings.column === column) {
+            // Toggle direction
+            this.sortState.teamStandings.direction =
+                this.sortState.teamStandings.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            // New column, default to descending
+            this.sortState.teamStandings.column = column;
+            this.sortState.teamStandings.direction = column === 'name' || column === 'player' ? 'asc' : 'desc';
+        }
+        this.showGameDashboard();
+        this.showTab('standings');
     },
 
     // Show add player form
@@ -480,6 +605,15 @@ const UI = {
             if (!name) {
                 alert('Indtast venligst et navn');
                 return;
+            }
+
+            // Check for duplicate
+            const game = DataManager.getCurrentGame();
+            const existingPlayer = game.players.find(p => p.name.toLowerCase() === name.toLowerCase());
+            if (existingPlayer) {
+                if (!confirm(`Der findes allerede en spiller med navnet "${existingPlayer.name}".\n\nVil du tilføje en til med samme navn?`)) {
+                    return;
+                }
             }
 
             console.log('UI.addPlayer: Adding player:', name);
@@ -537,6 +671,15 @@ const UI = {
                 return;
             }
 
+            // Check for duplicate
+            const game = DataManager.getCurrentGame();
+            const existingTeam = game.teams.find(t => t.name.toLowerCase() === name.toLowerCase());
+            if (existingTeam) {
+                if (!confirm(`Der findes allerede et hold med navnet "${existingTeam.name}".\n\nVil du tilføje et til med samme navn?`)) {
+                    return;
+                }
+            }
+
             DataManager.addTeam(name, playerId);
             this.closeModal();
 
@@ -586,6 +729,20 @@ const UI = {
             if (!name) {
                 alert('Indtast venligst et rytternavn');
                 return;
+            }
+
+            // Check for duplicate rider name across ALL teams
+            const game = DataManager.getCurrentGame();
+            let existingRider = null;
+            for (const team of game.teams) {
+                existingRider = team.riders.find(r => r.name.toLowerCase() === name.toLowerCase());
+                if (existingRider) break;
+            }
+
+            if (existingRider) {
+                if (!confirm(`Der findes allerede en rytter med navnet "${existingRider.name}".\n\nVil du tilføje en til med samme navn?`)) {
+                    return;
+                }
             }
 
             DataManager.addRider(name, teamId);
@@ -1374,12 +1531,16 @@ const UI = {
             resultsByPosition[result.position] = result;
         });
 
-        // Create rows for each position (1 to number of riders)
+        // Determine how many rows to show initially
+        const maxResults = Math.max(...Object.keys(resultsByPosition).map(Number), 0);
+        const initialRows = Math.max(15, maxResults + 3);
+
+        // Create rows for positions
         let tableRows = '';
-        for (let position = 1; position <= riders.length; position++) {
+        for (let position = 1; position <= initialRows; position++) {
             const existingResult = resultsByPosition[position];
             tableRows += `
-                <tr>
+                <tr id="result-row-${position}">
                     <td style="text-align: center; font-weight: bold;">${position}.</td>
                     <td>
                         <select id="rider-${position}" style="width: 100%; padding: 5px;">
@@ -1401,7 +1562,7 @@ const UI = {
         this.createModal('Registrer Resultater', `
             <p style="margin-bottom: 15px;">Vælg rytter og tid for hver placering. Tom rytter = ingen på den placering.</p>
             <div style="max-height: 400px; overflow-y: auto;">
-                <table style="width: 100%;">
+                <table style="width: 100%;" id="results-table">
                     <thead>
                         <tr style="position: sticky; top: 0; background: white;">
                             <th style="text-align: center; padding: 8px; width: 60px;">Plac.</th>
@@ -1409,18 +1570,21 @@ const UI = {
                             <th style="text-align: left; padding: 8px; width: 120px;">Tid</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="results-tbody">
                         ${tableRows}
                     </tbody>
                 </table>
             </div>
-            <div style="margin-top: 20px;">
+            <div style="margin-top: 15px;">
+                <button class="btn btn-secondary" onclick="UI.addMoreResultRows('${raceId}', ${initialRows})">➕ Tilføj 5 Rækker</button>
+            </div>
+            <div style="margin-top: 10px;">
                 <button class="btn btn-success" onclick="UI.saveBatchOneDayResults('${raceId}')">Gem Alle Resultater</button>
                 <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
             </div>
         `, () => {
             // Set selected riders after modal is created
-            for (let position = 1; position <= riders.length; position++) {
+            for (let position = 1; position <= initialRows; position++) {
                 const existingResult = resultsByPosition[position];
                 if (existingResult) {
                     const select = document.getElementById(`rider-${position}`);
@@ -1430,6 +1594,90 @@ const UI = {
         });
     },
 
+    // Add more result rows dynamically
+    addMoreResultRows(raceId, currentRows) {
+        const riders = DataManager.getAllRiders();
+        const tbody = document.getElementById('results-tbody');
+        if (!tbody) return;
+
+        // Create rider options for dropdowns
+        let riderOptions = '<option value="">-- Vælg rytter --</option>';
+        riders.forEach(rider => {
+            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
+        });
+
+        // Add 5 more rows
+        for (let i = 1; i <= 5; i++) {
+            const position = currentRows + i;
+            const row = document.createElement('tr');
+            row.id = `result-row-${position}`;
+            row.innerHTML = `
+                <td style="text-align: center; font-weight: bold;">${position}.</td>
+                <td>
+                    <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                        ${riderOptions}
+                    </select>
+                </td>
+                <td>
+                    <input type="text"
+                           id="time-${position}"
+                           placeholder="4:23:15"
+                           style="width: 100%; padding: 5px;">
+                </td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        // Update button to add more from new position
+        const button = event.target;
+        if (button) {
+            button.onclick = () => UI.addMoreResultRows(raceId, currentRows + 5);
+        }
+    },
+
+    // Add more stage result rows dynamically
+    addMoreStageResultRows(raceId, stageId, currentRows, stageType) {
+        const riders = DataManager.getAllRiders();
+        const tbody = document.getElementById('results-tbody');
+        if (!tbody) return;
+
+        // Create rider options for dropdowns
+        let riderOptions = '<option value="">-- Vælg rytter --</option>';
+        riders.forEach(rider => {
+            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
+        });
+
+        // Add 5 more rows
+        for (let i = 1; i <= 5; i++) {
+            const position = currentRows + i;
+            const finishPoints = PointsCalculator.getStageFinishPoints(stageType, position);
+            const row = document.createElement('tr');
+            row.id = `stage-result-row-${position}`;
+            row.innerHTML = `
+                <td style="text-align: center; font-weight: bold;">${position}.</td>
+                <td>
+                    <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                        ${riderOptions}
+                    </select>
+                </td>
+                <td>
+                    <input type="text"
+                           id="time-${position}"
+                           placeholder="4:23:15"
+                           style="width: 100%; padding: 5px;">
+                </td>
+                <td style="text-align: center;">${finishPoints}p</td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        // Update button to add more from new position
+        const button = event.target;
+        if (button) {
+            button.onclick = () => UI.addMoreStageResultRows(raceId, stageId, currentRows + 5, stageType);
+        }
+    },
+
     // Save batch one-day results
     saveBatchOneDayResults(raceId) {
         const race = DataManager.getRaceById(raceId);
@@ -1437,13 +1685,16 @@ const UI = {
         const results = [];
         const errors = [];
 
-        // Loop through positions instead of riders
-        for (let position = 1; position <= riders.length; position++) {
+        // Loop through all possible positions (check up to 200 positions to handle dynamically added rows)
+        for (let position = 1; position <= 200; position++) {
             const riderSelect = document.getElementById(`rider-${position}`);
             const timeInput = document.getElementById(`time-${position}`);
 
-            const riderId = riderSelect ? riderSelect.value : '';
-            const time = timeInput ? timeInput.value.trim() : '';
+            // Stop if we reach a position that doesn't exist
+            if (!riderSelect || !timeInput) break;
+
+            const riderId = riderSelect.value;
+            const time = timeInput.value.trim();
 
             // Only add if both rider and time are provided
             if (riderId && time) {
@@ -1504,13 +1755,17 @@ const UI = {
             });
         }
 
-        // Create rows for each position
+        // Determine how many rows to show initially
+        const maxResults = Math.max(...Object.keys(resultsByPosition).map(Number), 0);
+        const initialRows = Math.max(15, maxResults + 3);
+
+        // Create rows for positions
         let tableRows = '';
-        for (let position = 1; position <= riders.length; position++) {
+        for (let position = 1; position <= initialRows; position++) {
             const existingResult = resultsByPosition[position];
             const finishPoints = PointsCalculator.getStageFinishPoints(stageType, position);
             tableRows += `
-                <tr>
+                <tr id="stage-result-row-${position}">
                     <td style="text-align: center; font-weight: bold;">${position}.</td>
                     <td>
                         <select id="rider-${position}" style="width: 100%; padding: 5px;">
@@ -1542,18 +1797,21 @@ const UI = {
                             <th style="text-align: center; padding: 8px; width: 80px;">Sprint P.</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="results-tbody">
                         ${tableRows}
                     </tbody>
                 </table>
             </div>
-            <div style="margin-top: 20px;">
+            <div style="margin-top: 15px;">
+                <button class="btn btn-secondary" onclick="UI.addMoreStageResultRows('${raceId}', '${stageId}', ${initialRows}, '${stageType}')">➕ Tilføj 5 Rækker</button>
+            </div>
+            <div style="margin-top: 10px;">
                 <button class="btn btn-success" onclick="UI.saveBatchStageResults('${raceId}', '${stageId}')">Gem Alle Resultater</button>
                 <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
             </div>
         `, () => {
             // Set selected riders after modal is created
-            for (let position = 1; position <= riders.length; position++) {
+            for (let position = 1; position <= initialRows; position++) {
                 const existingResult = resultsByPosition[position];
                 if (existingResult) {
                     const select = document.getElementById(`rider-${position}`);
@@ -1571,13 +1829,16 @@ const UI = {
         const results = [];
         const errors = [];
 
-        // Loop through positions instead of riders
-        for (let position = 1; position <= riders.length; position++) {
+        // Loop through all possible positions (check up to 200 positions to handle dynamically added rows)
+        for (let position = 1; position <= 200; position++) {
             const riderSelect = document.getElementById(`rider-${position}`);
             const timeInput = document.getElementById(`time-${position}`);
 
-            const riderId = riderSelect ? riderSelect.value : '';
-            const time = timeInput ? timeInput.value.trim() : '';
+            // Stop if we reach a position that doesn't exist
+            if (!riderSelect || !timeInput) break;
+
+            const riderId = riderSelect.value;
+            const time = timeInput.value.trim();
 
             // Only add if both rider and time are provided
             if (riderId && time) {
@@ -1954,7 +2215,7 @@ const UI = {
         this.closeModal();
 
         const modalHtml = `
-            <div id="modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+            <div id="modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="if(event.target.id === 'modal-overlay') UI.closeModal()">
                 <div style="background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2>${title}</h2>
@@ -1969,10 +2230,23 @@ const UI = {
         modalContainer.innerHTML = modalHtml;
         document.body.appendChild(modalContainer);
 
+        // Add ESC key handler
+        this._escKeyHandler = (event) => {
+            if (event.key === 'Escape') {
+                this.closeModal();
+            }
+        };
+        document.addEventListener('keydown', this._escKeyHandler);
+
         // Call callback after modal is added to DOM
         if (callback && typeof callback === 'function') {
             setTimeout(callback, 0);
         }
+    },
+
+    // Show modal (alias for createModal)
+    showModal(content) {
+        this.createModal('', content);
     },
 
     // Close modal
@@ -1980,6 +2254,12 @@ const UI = {
         const modal = document.getElementById('modal-overlay');
         if (modal) {
             modal.parentElement.remove();
+        }
+
+        // Remove ESC key handler
+        if (this._escKeyHandler) {
+            document.removeEventListener('keydown', this._escKeyHandler);
+            this._escKeyHandler = null;
         }
     },
 
