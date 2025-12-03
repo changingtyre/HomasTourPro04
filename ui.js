@@ -2,6 +2,10 @@
 const UI = {
     mainContent: null,
     currentGameInfo: null,
+    sortState: {
+        riderStandings: { column: 'points', direction: 'desc' },
+        teamStandings: { column: 'points', direction: 'desc' }
+    },
 
     init() {
         this.mainContent = document.getElementById('main-content');
@@ -25,10 +29,11 @@ const UI = {
             html += '<h2>Dine Spil</h2>';
             html += '<div class="grid grid-2">';
             data.games.forEach(game => {
-                html += `<div class="game-card" onclick="UI.selectGame('${game.id}')">`;
+                html += `<div class="game-card" onclick="UI.selectGame('${game.id}')" style="position: relative; cursor: pointer;">`;
                 html += `<h3>${game.name}</h3>`;
                 html += `<p>${game.players.length} spillere | ${game.teams.length} hold | ${game.races.length} løb</p>`;
                 html += `<small>Oprettet: ${new Date(game.createdDate).toLocaleDateString('da-DK')}</small>`;
+                html += `<button class="btn btn-danger" onclick="event.stopPropagation(); UI.confirmDeleteGame('${game.id}', '${game.name.replace(/'/g, "\\'")}');" style="position: absolute; top: 10px; right: 10px; padding: 5px 10px; font-size: 0.8em;">🗑️ Slet</button>`;
                 html += '</div>';
             });
             html += '</div>';
@@ -72,6 +77,14 @@ const UI = {
         this.showGameDashboard();
     },
 
+    // Confirm delete game
+    confirmDeleteGame(gameId, gameName) {
+        if (confirm(`Er du sikker på at du vil slette spillet "${gameName}"?\n\nDette vil slette ALLE spillere, hold, ryttere, løb og resultater.\n\nDette kan IKKE fortrydes!`)) {
+            DataManager.deleteGame(gameId);
+            this.showHome();
+        }
+    },
+
     // Show game dashboard
     showGameDashboard() {
         const game = DataManager.getCurrentGame();
@@ -85,6 +98,7 @@ const UI = {
         html += '<button class="nav-tab" onclick="UI.showTab(\'players\', event)">Spillere & Hold</button>';
         html += '<button class="nav-tab" onclick="UI.showTab(\'races\', event)">Løb</button>';
         html += '<button class="nav-tab" onclick="UI.showTab(\'standings\', event)">Resultater</button>';
+        html += '<button class="nav-tab" onclick="UI.showTab(\'statistics\', event)">Statistik</button>';
         html += '</div>';
         html += '<div id="tab-content"></div>';
 
@@ -128,6 +142,9 @@ const UI = {
                 break;
             case 'standings':
                 this.showStandingsTab(tabContent);
+                break;
+            case 'statistics':
+                this.showStatisticsTab(tabContent);
                 break;
         }
     },
@@ -208,6 +225,13 @@ const UI = {
         html += '<button class="btn btn-primary" onclick="UI.showAddPlayer()">Tilføj Spiller</button>';
         html += '</div>';
 
+        // Add search box
+        html += '<div class="form-group" style="margin-bottom: 20px;">';
+        html += '<input type="text" id="search-players" placeholder="Søg efter spillere, hold eller ryttere..." oninput="UI.filterPlayers()" style="width: 100%; padding: 10px;">';
+        html += '</div>';
+
+        html += '<div id="players-list">';
+
         if (game.players.length === 0) {
             html += '<p>Ingen spillere endnu. Opret din første spiller!</p>';
             console.log('showPlayersTab: Showing "no players" message');
@@ -265,8 +289,87 @@ const UI = {
             });
         }
 
-        html += '</div>';
+        html += '</div>'; // Close players-list
+        html += '</div>'; // Close card
         container.innerHTML = html;
+    },
+
+    // Filter players by search term
+    filterPlayers() {
+        const searchTerm = document.getElementById('search-players').value.toLowerCase();
+        const playersList = document.getElementById('players-list');
+        const game = DataManager.getCurrentGame();
+
+        if (!game || !playersList) return;
+
+        let html = '';
+
+        if (game.players.length === 0) {
+            html += '<p>Ingen spillere endnu. Opret din første spiller!</p>';
+        } else {
+            game.players.forEach(player => {
+                const playerTeams = game.teams.filter(t => t.playerId === player.id);
+
+                // Check if player, team or rider matches search
+                const playerMatches = player.name.toLowerCase().includes(searchTerm);
+                const teamMatches = playerTeams.some(t => t.name.toLowerCase().includes(searchTerm));
+                const riderMatches = playerTeams.some(t =>
+                    t.riders.some(r => r.name.toLowerCase().includes(searchTerm))
+                );
+
+                if (searchTerm === '' || playerMatches || teamMatches || riderMatches) {
+                    html += '<div class="card" style="margin-bottom: 20px;">';
+                    html += `<div class="flex-between" style="align-items: center;">`;
+                    html += `<h3>${player.name}</h3>`;
+                    html += `<div>`;
+                    html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.showEditPlayer('${player.id}', '${player.name.replace(/'/g, "\\'")}')">✏️ Rediger</button>`;
+                    html += `<button class="btn btn-danger" onclick="UI.confirmDeletePlayer('${player.id}', '${player.name.replace(/'/g, "\\'")}')">🗑️ Slet</button>`;
+                    html += `</div>`;
+                    html += `</div>`;
+
+                    if (playerTeams.length === 0) {
+                        html += '<p>Ingen hold endnu.</p>';
+                        html += `<button class="btn btn-primary" onclick="UI.showAddTeam('${player.id}')">Tilføj Hold</button>`;
+                    } else {
+                        playerTeams.forEach(team => {
+                            html += `<div style="margin-top: 15px;">`;
+                            html += `<div class="flex-between">`;
+                            html += `<h4>🚴 ${team.name}</h4>`;
+                            html += `<div>`;
+                            html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.showAddRider('${team.id}')">Tilføj Rytter</button>`;
+                            html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.showEditTeam('${team.id}', '${team.name.replace(/'/g, "\\'")}')">✏️ Rediger</button>`;
+                            html += `<button class="btn btn-danger" onclick="UI.confirmDeleteTeam('${team.id}', '${team.name.replace(/'/g, "\\'")}')">🗑️ Slet</button>`;
+                            html += `</div>`;
+                            html += `</div>`;
+
+                            if (team.riders.length > 0) {
+                                html += '<table style="margin-top: 10px;">';
+                                html += '<tr><th>Rytter</th><th>World Tour Point</th><th>Sejre</th><th>Handlinger</th></tr>';
+                                team.riders.forEach(rider => {
+                                    const standing = game.riderStandings.find(r => r.riderId === rider.id) || { worldTourPoints: 0, wins: 0 };
+                                    html += '<tr>';
+                                    html += `<td>${rider.name}</td>`;
+                                    html += `<td>${standing.worldTourPoints}</td>`;
+                                    html += `<td>${standing.wins}</td>`;
+                                    html += `<td>`;
+                                    html += `<button class="btn btn-secondary" style="margin-right: 5px; font-size: 0.8em; padding: 4px 8px;" onclick="UI.showEditRider('${rider.id}', '${rider.name.replace(/'/g, "\\'")}')">✏️</button>`;
+                                    html += `<button class="btn btn-danger" style="font-size: 0.8em; padding: 4px 8px;" onclick="UI.confirmDeleteRider('${rider.id}', '${rider.name.replace(/'/g, "\\'")}')">🗑️</button>`;
+                                    html += `</td>`;
+                                    html += '</tr>';
+                                });
+                                html += '</table>';
+                            } else {
+                                html += '<p style="margin-top: 10px;">Ingen ryttere på holdet endnu.</p>';
+                            }
+                            html += `</div>`;
+                        });
+                    }
+                    html += '</div>';
+                }
+            });
+        }
+
+        playersList.innerHTML = html;
     },
 
     // Races tab
@@ -282,9 +385,16 @@ const UI = {
         if (game.races.length === 0) {
             html += '<p>Ingen løb endnu. Opret dit første løb!</p>';
         } else {
+            // Sort races by date (newest first)
+            const sortedRaces = [...game.races].sort((a, b) => {
+                const dateA = a.date || a.createdDate;
+                const dateB = b.date || b.createdDate;
+                return new Date(dateB) - new Date(dateA);
+            });
+
             html += '<table>';
             html += '<tr><th>Løb</th><th>Vinder</th><th>Dato</th><th>Handling</th></tr>';
-            game.races.forEach(race => {
+            sortedRaces.forEach(race => {
                 // Determine winner
                 let winner = '-';
                 if (race.raceFormat === 'one-day') {
@@ -304,11 +414,18 @@ const UI = {
                     }
                 }
 
+                // Use race.date if available, otherwise createdDate
+                const displayDate = race.date ? new Date(race.date).toLocaleDateString('da-DK') : new Date(race.createdDate).toLocaleDateString('da-DK');
+
                 html += '<tr>';
                 html += `<td>${race.name}</td>`;
                 html += `<td>${winner}</td>`;
-                html += `<td>${new Date(race.createdDate).toLocaleDateString('da-DK')}</td>`;
-                html += `<td><button class="btn btn-secondary" onclick="UI.viewRace('${race.id}')">Se Løb</button></td>`;
+                html += `<td>${displayDate}</td>`;
+                html += `<td>`;
+                html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.viewRace('${race.id}')">Se Løb</button>`;
+                html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.showEditRace('${race.id}')">✏️</button>`;
+                html += `<button class="btn btn-danger" onclick="UI.confirmDeleteRace('${race.id}', '${race.name.replace(/'/g, "\\'")}')">🗑️</button>`;
+                html += `</td>`;
                 html += '</tr>';
             });
             html += '</table>';
@@ -323,49 +440,511 @@ const UI = {
         const game = DataManager.getCurrentGame();
 
         let html = '<div class="card">';
+        html += '<div class="flex-between">';
         html += '<h2>Rytter Stilling</h2>';
+        html += '<button class="btn btn-success" onclick="UI.exportRiderStandingsCSV()">📥 Eksporter CSV</button>';
+        html += '</div>';
+
+        // Filters
+        html += '<div style="display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap; align-items: center;">';
+        html += '<div>';
+        html += '<label style="margin-right: 8px;">Filtrer efter hold:</label>';
+        html += '<select id="filter-team" onchange="UI.showGameDashboard(); UI.showTab(\'standings\');" style="padding: 5px;">';
+        html += '<option value="">Alle hold</option>';
+        game.teams.forEach(team => {
+            html += `<option value="${team.id}">${team.name}</option>`;
+        });
+        html += '</select>';
+        html += '</div>';
+        html += '<div>';
+        html += '<label style="margin-right: 8px; cursor: pointer;"><input type="checkbox" id="filter-active" onchange="UI.showGameDashboard(); UI.showTab(\'standings\');"> Kun aktive ryttere (med point)</label>';
+        html += '</div>';
+        html += '</div>';
 
         if (game.riderStandings.length === 0) {
             html += '<p>Ingen data endnu.</p>';
         } else {
-            const sortedRiders = [...game.riderStandings].sort((a, b) => b.worldTourPoints - a.worldTourPoints);
+            // Apply filters
+            const filterTeamId = document.getElementById('filter-team')?.value || '';
+            const filterActive = document.getElementById('filter-active')?.checked || false;
+
+            let filteredRiders = game.riderStandings;
+
+            // Filter by team
+            if (filterTeamId) {
+                filteredRiders = filteredRiders.filter(standing => {
+                    const rider = DataManager.getRiderById(standing.riderId);
+                    return rider && rider.teamId === filterTeamId;
+                });
+            }
+
+            // Filter active only
+            if (filterActive) {
+                filteredRiders = filteredRiders.filter(standing => standing.worldTourPoints > 0);
+            }
+
+            if (filteredRiders.length === 0) {
+                html += '<p style="margin-top: 15px;">Ingen ryttere matcher filtret.</p>';
+            } else {
+            // Sort riders based on current sort state
+            const sortCol = this.sortState.riderStandings.column;
+            const sortDir = this.sortState.riderStandings.direction;
+
+            const sortedRiders = [...filteredRiders].sort((a, b) => {
+                const riderA = DataManager.getRiderById(a.riderId);
+                const riderB = DataManager.getRiderById(b.riderId);
+
+                let valA, valB;
+                if (sortCol === 'name') {
+                    valA = riderA ? riderA.name : '';
+                    valB = riderB ? riderB.name : '';
+                    return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (sortCol === 'team') {
+                    const teamA = riderA ? DataManager.getTeamById(riderA.teamId) : null;
+                    const teamB = riderB ? DataManager.getTeamById(riderB.teamId) : null;
+                    valA = teamA ? teamA.name : '';
+                    valB = teamB ? teamB.name : '';
+                    return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (sortCol === 'points') {
+                    valA = a.worldTourPoints;
+                    valB = b.worldTourPoints;
+                } else if (sortCol === 'wins') {
+                    valA = a.wins;
+                    valB = b.wins;
+                }
+
+                return sortDir === 'asc' ? valA - valB : valB - valA;
+            });
+
+            const arrow = (col) => {
+                if (this.sortState.riderStandings.column === col) {
+                    return this.sortState.riderStandings.direction === 'asc' ? ' ↑' : ' ↓';
+                }
+                return '';
+            };
+
             html += '<table>';
-            html += '<tr><th>Position</th><th>Rytter</th><th>Hold</th><th>World Tour Point</th><th>Sejre</th></tr>';
+            html += '<tr>';
+            html += '<th>Position</th>';
+            html += `<th style="cursor: pointer;" onclick="UI.sortRiderStandings('name')">Rytter${arrow('name')}</th>`;
+            html += `<th style="cursor: pointer;" onclick="UI.sortRiderStandings('team')">Hold${arrow('team')}</th>`;
+            html += `<th style="cursor: pointer;" onclick="UI.sortRiderStandings('points')">World Tour Point${arrow('points')}</th>`;
+            html += `<th style="cursor: pointer;" onclick="UI.sortRiderStandings('wins')">Sejre${arrow('wins')}</th>`;
+            html += '</tr>';
+
             sortedRiders.forEach((standing, index) => {
                 const rider = DataManager.getRiderById(standing.riderId);
                 const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                const teamColor = team && team.color ? team.color : '#95a5a6';
                 html += '<tr>';
                 html += `<td>${index + 1}</td>`;
                 html += `<td>${rider ? rider.name : 'Ukendt'}</td>`;
-                html += `<td>${team ? team.name : 'Ukendt'}</td>`;
+                html += `<td><span style="display: inline-block; width: 12px; height: 12px; background: ${teamColor}; border-radius: 50%; margin-right: 8px; vertical-align: middle;"></span>${team ? team.name : 'Ukendt'}</td>`;
                 html += `<td><strong>${standing.worldTourPoints}</strong></td>`;
                 html += `<td>${standing.wins}</td>`;
+                html += '</tr>';
+            });
+            html += '</table>';
+            }
+        }
+        html += '</div>';
+
+        html += '<div class="card mt-20">';
+        html += '<div class="flex-between">';
+        html += '<h2>Hold Stilling</h2>';
+        html += '<button class="btn btn-success" onclick="UI.exportTeamStandingsCSV()">📥 Eksporter CSV</button>';
+        html += '</div>';
+
+        if (game.teamStandings.length === 0) {
+            html += '<p>Ingen data endnu.</p>';
+        } else {
+            // Sort teams based on current sort state
+            const sortCol = this.sortState.teamStandings.column;
+            const sortDir = this.sortState.teamStandings.direction;
+
+            const sortedTeams = [...game.teamStandings].sort((a, b) => {
+                const teamA = DataManager.getTeamById(a.teamId);
+                const teamB = DataManager.getTeamById(b.teamId);
+
+                let valA, valB;
+                if (sortCol === 'name') {
+                    valA = teamA ? teamA.name : '';
+                    valB = teamB ? teamB.name : '';
+                    return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (sortCol === 'player') {
+                    const playerA = teamA ? DataManager.getPlayerById(teamA.playerId) : null;
+                    const playerB = teamB ? DataManager.getPlayerById(teamB.playerId) : null;
+                    valA = playerA ? playerA.name : '';
+                    valB = playerB ? playerB.name : '';
+                    return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (sortCol === 'points') {
+                    valA = a.worldTourPoints;
+                    valB = b.worldTourPoints;
+                }
+
+                return sortDir === 'asc' ? valA - valB : valB - valA;
+            });
+
+            const arrow = (col) => {
+                if (this.sortState.teamStandings.column === col) {
+                    return this.sortState.teamStandings.direction === 'asc' ? ' ↑' : ' ↓';
+                }
+                return '';
+            };
+
+            html += '<table>';
+            html += '<tr>';
+            html += '<th>Position</th>';
+            html += `<th style="cursor: pointer;" onclick="UI.sortTeamStandings('name')">Hold${arrow('name')}</th>`;
+            html += `<th style="cursor: pointer;" onclick="UI.sortTeamStandings('player')">Spiller${arrow('player')}</th>`;
+            html += `<th style="cursor: pointer;" onclick="UI.sortTeamStandings('points')">World Tour Point${arrow('points')}</th>`;
+            html += '</tr>';
+
+            sortedTeams.forEach((standing, index) => {
+                const team = DataManager.getTeamById(standing.teamId);
+                const player = team ? DataManager.getPlayerById(team.playerId) : null;
+                const teamColor = team && team.color ? team.color : '#95a5a6';
+                html += '<tr>';
+                html += `<td>${index + 1}</td>`;
+                html += `<td><span style="display: inline-block; width: 12px; height: 12px; background: ${teamColor}; border-radius: 50%; margin-right: 8px; vertical-align: middle;"></span>${team ? team.name : 'Ukendt'}</td>`;
+                html += `<td>${player ? player.name : 'Ukendt'}</td>`;
+                html += `<td><strong>${standing.worldTourPoints}</strong></td>`;
                 html += '</tr>';
             });
             html += '</table>';
         }
         html += '</div>';
 
-        html += '<div class="card mt-20">';
-        html += '<h2>Hold Stilling</h2>';
+        container.innerHTML = html;
+    },
+
+    // Sort rider standings
+    sortRiderStandings(column) {
+        if (this.sortState.riderStandings.column === column) {
+            // Toggle direction
+            this.sortState.riderStandings.direction =
+                this.sortState.riderStandings.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            // New column, default to descending
+            this.sortState.riderStandings.column = column;
+            this.sortState.riderStandings.direction = column === 'name' || column === 'team' ? 'asc' : 'desc';
+        }
+        this.showGameDashboard();
+        this.showTab('standings');
+    },
+
+    // Sort team standings
+    sortTeamStandings(column) {
+        if (this.sortState.teamStandings.column === column) {
+            // Toggle direction
+            this.sortState.teamStandings.direction =
+                this.sortState.teamStandings.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            // New column, default to descending
+            this.sortState.teamStandings.column = column;
+            this.sortState.teamStandings.direction = column === 'name' || column === 'player' ? 'asc' : 'desc';
+        }
+        this.showGameDashboard();
+        this.showTab('standings');
+    },
+
+    // Show statistics tab
+    showStatisticsTab(container) {
+        const game = DataManager.getCurrentGame();
+
+        let html = '<div class="card">';
+        html += '<div class="flex-between">';
+        html += '<h2>📊 Statistik Dashboard</h2>';
+        html += '<button class="btn btn-success" onclick="UI.exportStatisticsCSV()">📥 Eksporter CSV</button>';
+        html += '</div>';
+        html += '</div>';
+
+        // Rider statistics
+        html += '<div class="card">';
+        html += '<h3>Rytter Statistik</h3>';
+
+        if (game.riderStandings.length === 0) {
+            html += '<p>Ingen rytter data endnu.</p>';
+        } else {
+            // Calculate rider statistics
+            const riderStats = game.riderStandings.map(standing => {
+                const rider = DataManager.getRiderById(standing.riderId);
+                const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+
+                // Count races participated
+                let racesParticipated = 0;
+                let totalPositions = 0;
+                let bestPosition = Infinity;
+                let podiums = 0; // Top 3 finishes
+
+                game.races.forEach(race => {
+                    if (race.type === 'one-day') {
+                        const result = race.results.find(r => r.riderId === standing.riderId);
+                        if (result) {
+                            racesParticipated++;
+                            totalPositions += result.position;
+                            if (result.position < bestPosition) bestPosition = result.position;
+                            if (result.position <= 3) podiums++;
+                        }
+                    } else if (race.type === 'stage') {
+                        // Check if rider participated in any stage
+                        let participatedInRace = false;
+                        race.stages.forEach(stage => {
+                            const result = stage.results.find(r => r.riderId === standing.riderId);
+                            if (result && !participatedInRace) {
+                                participatedInRace = true;
+                                racesParticipated++;
+                            }
+                        });
+
+                        // Check GC position
+                        if (race.generalClassification) {
+                            const gcPosition = race.generalClassification.findIndex(gc => gc.riderId === standing.riderId);
+                            if (gcPosition !== -1) {
+                                const position = gcPosition + 1;
+                                totalPositions += position;
+                                if (position < bestPosition) bestPosition = position;
+                                if (position <= 3) podiums++;
+                            }
+                        }
+                    }
+                });
+
+                const avgPosition = racesParticipated > 0 ? (totalPositions / racesParticipated).toFixed(1) : 'N/A';
+                const bestPos = bestPosition === Infinity ? 'N/A' : bestPosition;
+
+                return {
+                    riderId: standing.riderId,
+                    riderName: rider ? rider.name : 'Ukendt',
+                    teamName: team ? team.name : 'Ukendt',
+                    points: standing.worldTourPoints,
+                    wins: standing.wins,
+                    races: racesParticipated,
+                    avgPosition: avgPosition,
+                    bestPosition: bestPos,
+                    podiums: podiums
+                };
+            });
+
+            // Sort by points (descending)
+            riderStats.sort((a, b) => b.points - a.points);
+
+            // Show top 15 riders
+            const topRiders = riderStats.slice(0, 15);
+
+            html += '<table>';
+            html += '<tr>';
+            html += '<th>Rytter</th>';
+            html += '<th>Hold</th>';
+            html += '<th>Point</th>';
+            html += '<th>Sejre</th>';
+            html += '<th>Podier</th>';
+            html += '<th>Løb</th>';
+            html += '<th>Gns. Plac.</th>';
+            html += '<th>Bedste</th>';
+            html += '<th>Performance</th>';
+            html += '</tr>';
+
+            topRiders.forEach(stat => {
+                // Calculate performance bar (based on points, max 100% = top rider's points)
+                const maxPoints = topRiders[0].points;
+                const performancePercent = maxPoints > 0 ? Math.round((stat.points / maxPoints) * 100) : 0;
+
+                // Get team color
+                const rider = DataManager.getRiderById(stat.riderId);
+                const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                const teamColor = team && team.color ? team.color : '#95a5a6';
+
+                html += '<tr>';
+                html += `<td><strong>${stat.riderName}</strong></td>`;
+                html += `<td><span style="display: inline-block; width: 12px; height: 12px; background: ${teamColor}; border-radius: 50%; margin-right: 8px; vertical-align: middle;"></span>${stat.teamName}</td>`;
+                html += `<td>${stat.points}</td>`;
+                html += `<td>${stat.wins}</td>`;
+                html += `<td>${stat.podiums}</td>`;
+                html += `<td>${stat.races}</td>`;
+                html += `<td>${stat.avgPosition}</td>`;
+                html += `<td>${stat.bestPosition}</td>`;
+                html += `<td><div style="background: linear-gradient(90deg, #3498db ${performancePercent}%, #ecf0f1 ${performancePercent}%); padding: 5px 10px; border-radius: 4px; text-align: center; font-weight: bold;">${performancePercent}%</div></td>`;
+                html += '</tr>';
+            });
+
+            html += '</table>';
+        }
+        html += '</div>';
+
+        // Team statistics
+        html += '<div class="card">';
+        html += '<h3>Hold Statistik</h3>';
 
         if (game.teamStandings.length === 0) {
-            html += '<p>Ingen data endnu.</p>';
+            html += '<p>Ingen hold data endnu.</p>';
         } else {
-            const sortedTeams = [...game.teamStandings].sort((a, b) => b.worldTourPoints - a.worldTourPoints);
-            html += '<table>';
-            html += '<tr><th>Position</th><th>Hold</th><th>Spiller</th><th>World Tour Point</th></tr>';
-            sortedTeams.forEach((standing, index) => {
+            // Calculate team statistics
+            const teamStats = game.teamStandings.map(standing => {
                 const team = DataManager.getTeamById(standing.teamId);
                 const player = team ? DataManager.getPlayerById(team.playerId) : null;
+
+                // Count riders in team
+                const riderCount = team ? team.riders.length : 0;
+
+                // Count wins from riders
+                let totalWins = 0;
+                if (team && team.riders) {
+                    team.riders.forEach(rider => {
+                        const riderStanding = game.riderStandings.find(rs => rs.riderId === rider.id);
+                        if (riderStanding) {
+                            totalWins += riderStanding.wins;
+                        }
+                    });
+                }
+
+                const avgPointsPerRider = riderCount > 0 ? (standing.worldTourPoints / riderCount).toFixed(1) : '0.0';
+
+                return {
+                    teamId: standing.teamId,
+                    teamName: team ? team.name : 'Ukendt',
+                    playerName: player ? player.name : 'Ukendt',
+                    points: standing.worldTourPoints,
+                    riderCount: riderCount,
+                    avgPointsPerRider: avgPointsPerRider,
+                    totalWins: totalWins
+                };
+            });
+
+            // Sort by points (descending)
+            teamStats.sort((a, b) => b.points - a.points);
+
+            // Show top 10 teams
+            const topTeams = teamStats.slice(0, 10);
+
+            html += '<table>';
+            html += '<tr>';
+            html += '<th>Hold</th>';
+            html += '<th>Spiller</th>';
+            html += '<th>Total Point</th>';
+            html += '<th>Ryttere</th>';
+            html += '<th>Gns. Point/Rytter</th>';
+            html += '<th>Sejre</th>';
+            html += '<th>Performance</th>';
+            html += '</tr>';
+
+            topTeams.forEach(stat => {
+                // Calculate performance bar
+                const maxPoints = topTeams[0].points;
+                const performancePercent = maxPoints > 0 ? Math.round((stat.points / maxPoints) * 100) : 0;
+
+                // Get team color
+                const team = DataManager.getTeamById(stat.teamId);
+                const teamColor = team && team.color ? team.color : '#95a5a6';
+
                 html += '<tr>';
-                html += `<td>${index + 1}</td>`;
-                html += `<td>${team ? team.name : 'Ukendt'}</td>`;
-                html += `<td>${player ? player.name : 'Ukendt'}</td>`;
-                html += `<td><strong>${standing.worldTourPoints}</strong></td>`;
+                html += `<td><span style="display: inline-block; width: 12px; height: 12px; background: ${teamColor}; border-radius: 50%; margin-right: 8px; vertical-align: middle;"></span><strong>${stat.teamName}</strong></td>`;
+                html += `<td>${stat.playerName}</td>`;
+                html += `<td>${stat.points}</td>`;
+                html += `<td>${stat.riderCount}</td>`;
+                html += `<td>${stat.avgPointsPerRider}</td>`;
+                html += `<td>${stat.totalWins}</td>`;
+                html += `<td><div style="background: linear-gradient(90deg, #27ae60 ${performancePercent}%, #ecf0f1 ${performancePercent}%); padding: 5px 10px; border-radius: 4px; text-align: center; font-weight: bold;">${performancePercent}%</div></td>`;
+                html += '</tr>';
+            });
+
+            html += '</table>';
+        }
+        html += '</div>';
+
+        // Stage wins overview
+        html += '<div class="card">';
+        html += '<h3>🏆 Etapevindere Oversigt</h3>';
+
+        // Calculate stage wins per rider
+        const stageWins = new Map();
+        game.races.forEach(race => {
+            if (race.raceFormat === 'stage' && race.stages) {
+                race.stages.forEach(stage => {
+                    if (stage.results && stage.results.length > 0) {
+                        const winner = stage.results.find(r => r.position === 1);
+                        if (winner) {
+                            if (!stageWins.has(winner.riderId)) {
+                                stageWins.set(winner.riderId, []);
+                            }
+                            stageWins.get(winner.riderId).push({
+                                raceName: race.name,
+                                stageName: stage.name,
+                                stageNumber: stage.stageNumber
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
+        if (stageWins.size === 0) {
+            html += '<p>Ingen etapesejre endnu.</p>';
+        } else {
+            // Sort by number of wins
+            const sortedWins = Array.from(stageWins.entries())
+                .map(([riderId, wins]) => {
+                    const rider = DataManager.getRiderById(riderId);
+                    const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                    return {
+                        riderId,
+                        riderName: rider ? rider.name : 'Ukendt',
+                        teamName: team ? team.name : 'Ukendt',
+                        teamColor: team && team.color ? team.color : '#95a5a6',
+                        wins: wins
+                    };
+                })
+                .sort((a, b) => b.wins.length - a.wins.length);
+
+            html += '<table>';
+            html += '<tr><th>Rytter</th><th>Hold</th><th>Antal Sejre</th><th>Etaper</th></tr>';
+            sortedWins.forEach(riderWins => {
+                html += '<tr>';
+                html += `<td><strong>${riderWins.riderName}</strong></td>`;
+                html += `<td><span style="display: inline-block; width: 12px; height: 12px; background: ${riderWins.teamColor}; border-radius: 50%; margin-right: 8px; vertical-align: middle;"></span>${riderWins.teamName}</td>`;
+                html += `<td><strong>${riderWins.wins.length}</strong></td>`;
+                html += '<td><ul style="margin: 0; padding-left: 20px;">';
+                riderWins.wins.forEach(win => {
+                    html += `<li style="font-size: 0.9em;">${win.raceName} - Etape ${win.stageNumber}: ${win.stageName}</li>`;
+                });
+                html += '</ul></td>';
                 html += '</tr>';
             });
             html += '</table>';
+        }
+        html += '</div>';
+
+        // Race statistics
+        html += '<div class="card">';
+        html += '<h3>Løb Statistik</h3>';
+
+        if (game.races.length === 0) {
+            html += '<p>Ingen løb endnu.</p>';
+        } else {
+            const oneDayRaces = game.races.filter(r => r.type === 'one-day').length;
+            const stageRaces = game.races.filter(r => r.type === 'stage').length;
+            const totalStages = game.races
+                .filter(r => r.type === 'stage')
+                .reduce((sum, race) => sum + race.stages.length, 0);
+
+            html += '<div class="grid grid-3">';
+            html += `<div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #3498db, #5DADE2); color: white; border-radius: 8px;">`;
+            html += `<h2 style="margin: 0; color: white;">${game.races.length}</h2>`;
+            html += `<p style="margin: 5px 0 0 0;">Total Løb</p>`;
+            html += `</div>`;
+            html += `<div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #27ae60, #58D68D); color: white; border-radius: 8px;">`;
+            html += `<h2 style="margin: 0; color: white;">${oneDayRaces}</h2>`;
+            html += `<p style="margin: 5px 0 0 0;">Endagsløb</p>`;
+            html += `</div>`;
+            html += `<div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #e74c3c, #EC7063); color: white; border-radius: 8px;">`;
+            html += `<h2 style="margin: 0; color: white;">${stageRaces}</h2>`;
+            html += `<p style="margin: 5px 0 0 0;">Etapeløb</p>`;
+            html += `</div>`;
+            html += `</div>`;
+
+            if (stageRaces > 0) {
+                html += `<p style="margin-top: 15px; text-align: center; color: #7f8c8d;">Total etaper: <strong>${totalStages}</strong> | Gennemsnit pr. løb: <strong>${(totalStages / stageRaces).toFixed(1)}</strong></p>`;
+            }
         }
         html += '</div>';
 
@@ -390,6 +969,15 @@ const UI = {
             if (!name) {
                 alert('Indtast venligst et navn');
                 return;
+            }
+
+            // Check for duplicate
+            const game = DataManager.getCurrentGame();
+            const existingPlayer = game.players.find(p => p.name.toLowerCase() === name.toLowerCase());
+            if (existingPlayer) {
+                if (!confirm(`Der findes allerede en spiller med navnet "${existingPlayer.name}".\n\nVil du tilføje en til med samme navn?`)) {
+                    return;
+                }
             }
 
             console.log('UI.addPlayer: Adding player:', name);
@@ -432,6 +1020,10 @@ const UI = {
                     ${playerOptions}
                 </select>
             </div>
+            <div class="form-group">
+                <label>Holdfarve</label>
+                <input type="color" id="team-color" value="#3498db" style="width: 100%; height: 40px; cursor: pointer;">
+            </div>
             <button class="btn btn-success" onclick="UI.addTeam()">Tilføj Hold</button>
         `);
     },
@@ -441,13 +1033,23 @@ const UI = {
         try {
             const name = document.getElementById('team-name').value.trim();
             const playerId = document.getElementById('team-player').value;
+            const color = document.getElementById('team-color').value;
 
             if (!name) {
                 alert('Indtast venligst et holdnavn');
                 return;
             }
 
-            DataManager.addTeam(name, playerId);
+            // Check for duplicate
+            const game = DataManager.getCurrentGame();
+            const existingTeam = game.teams.find(t => t.name.toLowerCase() === name.toLowerCase());
+            if (existingTeam) {
+                if (!confirm(`Der findes allerede et hold med navnet "${existingTeam.name}".\n\nVil du tilføje et til med samme navn?`)) {
+                    return;
+                }
+            }
+
+            DataManager.addTeam(name, playerId, color);
             this.closeModal();
 
             // Small delay to ensure modal is fully closed
@@ -496,6 +1098,20 @@ const UI = {
             if (!name) {
                 alert('Indtast venligst et rytternavn');
                 return;
+            }
+
+            // Check for duplicate rider name across ALL teams
+            const game = DataManager.getCurrentGame();
+            let existingRider = null;
+            for (const team of game.teams) {
+                existingRider = team.riders.find(r => r.name.toLowerCase() === name.toLowerCase());
+                if (existingRider) break;
+            }
+
+            if (existingRider) {
+                if (!confirm(`Der findes allerede en rytter med navnet "${existingRider.name}".\n\nVil du tilføje en til med samme navn?`)) {
+                    return;
+                }
             }
 
             DataManager.addRider(name, teamId);
@@ -656,6 +1272,11 @@ const UI = {
                 <input type="text" id="race-name" placeholder="f.eks. Tour de France 2024">
             </div>
             <div class="form-group">
+                <label>Dato (valgfrit)</label>
+                <input type="date" id="race-date">
+                <small style="color: #7f8c8d; display: block; margin-top: 5px;">Dette er løbets oprindelige dato, ikke spilledatoen</small>
+            </div>
+            <div class="form-group">
                 <label>Løbstype</label>
                 <select id="race-type">
                     <option value="tour-de-france">Tour de France</option>
@@ -681,6 +1302,7 @@ const UI = {
     createRace() {
         try {
             const name = document.getElementById('race-name').value.trim();
+            const date = document.getElementById('race-date').value;
             const type = document.getElementById('race-type').value;
             const format = document.getElementById('race-format').value;
 
@@ -689,7 +1311,7 @@ const UI = {
                 return;
             }
 
-            const race = DataManager.createRace(name, type, format);
+            const race = DataManager.createRace(name, type, format, date);
             this.closeModal();
 
             // Small delay to ensure modal is fully closed before navigating
@@ -699,6 +1321,94 @@ const UI = {
         } catch (error) {
             console.error('Error creating race:', error);
             alert('Fejl ved oprettelse af løb: ' + error.message);
+        }
+    },
+
+    // Edit race
+    showEditRace(raceId) {
+        const race = DataManager.getRaceById(raceId);
+        if (!race) return;
+
+        this.showModal(`
+            <h2>Rediger Løb</h2>
+            <div class="form-group">
+                <label>Løbsnavn</label>
+                <input type="text" id="edit-race-name" value="${race.name}" placeholder="Løbsnavn">
+            </div>
+            <div class="form-group">
+                <label>Løbstype</label>
+                <select id="edit-race-type">
+                    <option value="tour-de-france" ${race.type === 'tour-de-france' ? 'selected' : ''}>Tour de France (800 point)</option>
+                    <option value="giro" ${race.type === 'giro' ? 'selected' : ''}>Giro d'Italia (800 point)</option>
+                    <option value="vuelta" ${race.type === 'vuelta' ? 'selected' : ''}>Vuelta a España (800 point)</option>
+                    <option value="monument" ${race.type === 'monument' ? 'selected' : ''}>Monument (300 point)</option>
+                    <option value="worldcup-major" ${race.type === 'worldcup-major' ? 'selected' : ''}>World Cup Major (200 point)</option>
+                    <option value="worldcup-other" ${race.type === 'worldcup-other' ? 'selected' : ''}>World Cup Other (75 point)</option>
+                </select>
+            </div>
+            <input type="hidden" id="edit-race-id" value="${raceId}">
+            <button class="btn btn-success" onclick="UI.saveEditRace()">Gem</button>
+            <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+        `);
+    },
+
+    saveEditRace() {
+        const raceId = document.getElementById('edit-race-id').value;
+        const newName = document.getElementById('edit-race-name').value.trim();
+        const newType = document.getElementById('edit-race-type').value;
+
+        if (!newName) {
+            alert('Indtast venligst et løbsnavn');
+            return;
+        }
+
+        if (DataManager.editRace(raceId, newName, newType)) {
+            this.closeModal();
+            setTimeout(() => {
+                this.showGameDashboard();
+                this.showTab('races');
+            }, 50);
+        } else {
+            alert('Fejl ved redigering af løb');
+        }
+    },
+
+    confirmDeleteRace(raceId, raceName) {
+        if (confirm(`Er du sikker på at du vil slette løbet "${raceName}"?\n\nDette vil slette alle resultater for dette løb.`)) {
+            if (DataManager.deleteRace(raceId)) {
+                this.showGameDashboard();
+                this.showTab('races');
+            } else {
+                alert('Fejl ved sletning af løb');
+            }
+        }
+    },
+
+    // Show edit race notes
+    showEditRaceNotes(raceId) {
+        const race = DataManager.getRaceById(raceId);
+        if (!race) return;
+
+        this.showModal(`
+            <h2>Rediger Noter - ${race.name}</h2>
+            <div class="form-group">
+                <label>Noter (valgfrit)</label>
+                <textarea id="race-notes" rows="6" style="width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 4px;">${race.notes || ''}</textarea>
+                <small style="color: #7f8c8d; display: block; margin-top: 5px;">Tilføj noter om vejr, særlige hændelser, strategi osv.</small>
+            </div>
+            <button class="btn btn-success" onclick="UI.saveRaceNotes('${raceId}')">Gem</button>
+            <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+        `);
+    },
+
+    // Save race notes
+    saveRaceNotes(raceId) {
+        const notes = document.getElementById('race-notes').value.trim();
+        if (DataManager.updateRaceNotes(raceId, notes)) {
+            this.closeModal();
+            this.viewRace(raceId);
+        } else {
+            alert('Fejl ved gem af noter');
         }
     },
 
@@ -738,7 +1448,21 @@ const UI = {
         html += `<h2>${race.name}</h2>`;
         html += `<p><strong>Type:</strong> ${PointsCalculator.getRaceTypeName(race.type)}</p>`;
         html += `<p><strong>Format:</strong> Endagsløb</p>`;
-        html += `<button class="btn btn-primary mt-20" onclick="UI.showAddOneDayResult('${race.id}')">Registrer Resultat</button>`;
+        if (race.date) {
+            html += `<p><strong>Dato:</strong> ${new Date(race.date).toLocaleDateString('da-DK')}</p>`;
+        }
+        if (race.notes) {
+            html += `<div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px;">`;
+            html += `<p style="margin: 0; white-space: pre-wrap;"><strong>📝 Noter:</strong><br>${race.notes}</p>`;
+            html += `</div>`;
+        }
+        html += `<div class="flex gap-10 mt-20" style="flex-wrap: wrap;">`;
+        html += `<button class="btn btn-primary" onclick="UI.showAddOneDayResult('${race.id}')">Registrer Resultat</button>`;
+        html += `<button class="btn btn-secondary" onclick="UI.showEditRaceNotes('${race.id}')">📝 ${race.notes ? 'Rediger' : 'Tilføj'} Noter</button>`;
+        if (race.results.length > 0) {
+            html += `<button class="btn btn-danger" onclick="UI.confirmClearOneDayResults('${race.id}', '${race.name.replace(/'/g, "\\'")}')">Ryd Alle Resultater</button>`;
+        }
+        html += '</div>';
         html += '</div>';
 
         // Results
@@ -776,9 +1500,18 @@ const UI = {
         html += `<h2>${race.name}</h2>`;
         html += `<p><strong>Type:</strong> ${PointsCalculator.getRaceTypeName(race.type)}</p>`;
         html += `<p><strong>Format:</strong> Etapeløb</p>`;
+        if (race.date) {
+            html += `<p><strong>Dato:</strong> ${new Date(race.date).toLocaleDateString('da-DK')}</p>`;
+        }
+        if (race.notes) {
+            html += `<div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px;">`;
+            html += `<p style="margin: 0; white-space: pre-wrap;"><strong>📝 Noter:</strong><br>${race.notes}</p>`;
+            html += `</div>`;
+        }
         html += '<div class="flex gap-10 mt-20" style="flex-wrap: wrap;">';
         html += `<button class="btn btn-primary" onclick="UI.showAddStage('${race.id}')">Tilføj Etape</button>`;
         html += `<button class="btn btn-secondary" onclick="UI.showYellowJerseyBonus('${race.id}')">Førertrøje Bonus</button>`;
+        html += `<button class="btn btn-secondary" onclick="UI.showEditRaceNotes('${race.id}')">📝 ${race.notes ? 'Rediger' : 'Tilføj'} Noter</button>`;
         html += '</div>';
         html += '</div>';
 
@@ -863,6 +1596,11 @@ const UI = {
                 html += `<button class="btn btn-secondary" onclick="UI.showAddMountain('${race.id}', '${stage.id}')">➕ Bjerg</button>`;
                 html += `<button class="btn btn-secondary" onclick="UI.showAddSprint('${race.id}', '${stage.id}')">➕ Spurt</button>`;
                 html += `<button class="btn btn-primary" onclick="UI.showAddStageResult('${race.id}', '${stage.id}')">Registrer Resultat</button>`;
+                if (stage.results && stage.results.length > 0) {
+                    html += `<button class="btn btn-danger" onclick="UI.confirmClearStageResults('${race.id}', '${stage.id}', '${stage.name.replace(/'/g, "\\'")}')">Ryd Resultater</button>`;
+                }
+                html += `<button class="btn btn-secondary" onclick="UI.showEditStage('${race.id}', '${stage.id}')">✏️</button>`;
+                html += `<button class="btn btn-danger" onclick="UI.confirmDeleteStage('${race.id}', '${stage.id}', '${stage.name.replace(/'/g, "\\'")}')">🗑️</button>`;
                 html += `</div>`;
                 html += `</div>`;
 
@@ -1115,6 +1853,90 @@ const UI = {
         this.viewRace(raceId);
     },
 
+    // Edit stage
+    showEditStage(raceId, stageId) {
+        const race = DataManager.getRaceById(raceId);
+        if (!race) return;
+
+        const stage = race.stages.find(s => s.id === stageId);
+        if (!stage) return;
+
+        this.showModal(`
+            <h2>Rediger Etape</h2>
+            <div class="form-group">
+                <label>Etapenavn</label>
+                <input type="text" id="edit-stage-name" value="${stage.name}" placeholder="f.eks. Etape 1">
+            </div>
+            <div class="form-group">
+                <label>Etapenummer</label>
+                <input type="number" id="edit-stage-number" value="${stage.stageNumber}" min="1">
+            </div>
+            <div class="form-group">
+                <label>Etapetype</label>
+                <select id="edit-stage-type">
+                    <option value="flat" ${stage.stageType === 'flat' ? 'selected' : ''}>Flad</option>
+                    <option value="hilly" ${stage.stageType === 'hilly' ? 'selected' : ''}>Bakket</option>
+                    <option value="mountain" ${stage.stageType === 'mountain' ? 'selected' : ''}>Bjerg</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="edit-finish-on-mountain" ${stage.finishOnMountain ? 'checked' : ''}
+                           onchange="document.getElementById('edit-finish-mountain-category-group').style.display = this.checked ? 'block' : 'none'">
+                    Slutter på bjerg
+                </label>
+            </div>
+            <div class="form-group" id="edit-finish-mountain-category-group" style="display: ${stage.finishOnMountain ? 'block' : 'none'}">
+                <label>Bjergkategori ved målgang</label>
+                <select id="edit-finish-mountain-category">
+                    <option value="cat4" ${stage.finishMountainCategory === 'cat4' ? 'selected' : ''}>Cat 4</option>
+                    <option value="cat3" ${stage.finishMountainCategory === 'cat3' ? 'selected' : ''}>Cat 3</option>
+                    <option value="cat2" ${stage.finishMountainCategory === 'cat2' ? 'selected' : ''}>Cat 2</option>
+                    <option value="cat1" ${stage.finishMountainCategory === 'cat1' ? 'selected' : ''}>Cat 1</option>
+                    <option value="hc" ${stage.finishMountainCategory === 'hc' ? 'selected' : ''}>HC</option>
+                </select>
+            </div>
+            <input type="hidden" id="edit-stage-race-id" value="${raceId}">
+            <input type="hidden" id="edit-stage-id" value="${stageId}">
+            <button class="btn btn-success" onclick="UI.saveEditStage()">Gem</button>
+            <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+        `);
+    },
+
+    saveEditStage() {
+        const raceId = document.getElementById('edit-stage-race-id').value;
+        const stageId = document.getElementById('edit-stage-id').value;
+        const name = document.getElementById('edit-stage-name').value.trim();
+        const number = parseInt(document.getElementById('edit-stage-number').value);
+        const stageType = document.getElementById('edit-stage-type').value;
+        const finishOnMountain = document.getElementById('edit-finish-on-mountain').checked;
+        const finishMountainCategory = finishOnMountain ? document.getElementById('edit-finish-mountain-category').value : null;
+
+        if (!name) {
+            alert('Indtast venligst et etapenavn');
+            return;
+        }
+
+        if (DataManager.editStage(raceId, stageId, name, number, stageType, finishOnMountain, finishMountainCategory)) {
+            this.closeModal();
+            setTimeout(() => {
+                this.viewRace(raceId);
+            }, 50);
+        } else {
+            alert('Fejl ved redigering af etape');
+        }
+    },
+
+    confirmDeleteStage(raceId, stageId, stageName) {
+        if (confirm(`Er du sikker på at du vil slette etapen "${stageName}"?\n\nDette vil slette alle resultater for denne etape.`)) {
+            if (DataManager.deleteStage(raceId, stageId)) {
+                this.viewRace(raceId);
+            } else {
+                alert('Fejl ved sletning af etape');
+            }
+        }
+    },
+
     // Show add one-day result form (batch mode)
     showAddOneDayResult(raceId) {
         const riders = DataManager.getAllRiders();
@@ -1132,18 +1954,29 @@ const UI = {
             resultsByPosition[result.position] = result;
         });
 
-        // Create rows for each position (1 to number of riders)
+        // Determine how many rows to show initially
+        const maxResults = Math.max(...Object.keys(resultsByPosition).map(Number), 0);
+        const initialRows = Math.max(15, maxResults + 3);
+
+        // Create rows for positions
         let tableRows = '';
-        for (let position = 1; position <= riders.length; position++) {
+        for (let position = 1; position <= initialRows; position++) {
             const existingResult = resultsByPosition[position];
             tableRows += `
-                <tr>
+                <tr id="result-row-${position}">
                     <td style="text-align: center; font-weight: bold;">${position}.</td>
                     <td>
                         <select id="rider-${position}" style="width: 100%; padding: 5px;">
                             ${riderOptions}
                         </select>
                         ${existingResult ? `<script>document.getElementById('rider-${position}').value = '${existingResult.riderId}';</script>` : ''}
+                    </td>
+                    <td>
+                        <select id="status-${position}" style="width: 100%; padding: 5px;">
+                            <option value="">Normal</option>
+                            <option value="DNF" ${existingResult && existingResult.status === 'DNF' ? 'selected' : ''}>DNF</option>
+                            <option value="DSQ" ${existingResult && existingResult.status === 'DSQ' ? 'selected' : ''}>DSQ</option>
+                        </select>
                     </td>
                     <td>
                         <input type="text"
@@ -1159,26 +1992,30 @@ const UI = {
         this.createModal('Registrer Resultater', `
             <p style="margin-bottom: 15px;">Vælg rytter og tid for hver placering. Tom rytter = ingen på den placering.</p>
             <div style="max-height: 400px; overflow-y: auto;">
-                <table style="width: 100%;">
+                <table style="width: 100%;" id="results-table">
                     <thead>
                         <tr style="position: sticky; top: 0; background: white;">
                             <th style="text-align: center; padding: 8px; width: 60px;">Plac.</th>
                             <th style="text-align: left; padding: 8px;">Rytter</th>
+                            <th style="text-align: left; padding: 8px; width: 100px;">Status</th>
                             <th style="text-align: left; padding: 8px; width: 120px;">Tid</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="results-tbody">
                         ${tableRows}
                     </tbody>
                 </table>
             </div>
-            <div style="margin-top: 20px;">
+            <div style="margin-top: 15px;">
+                <button class="btn btn-secondary" onclick="UI.addMoreResultRows('${raceId}', ${initialRows})">➕ Tilføj 5 Rækker</button>
+            </div>
+            <div style="margin-top: 10px;">
                 <button class="btn btn-success" onclick="UI.saveBatchOneDayResults('${raceId}')">Gem Alle Resultater</button>
                 <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
             </div>
         `, () => {
             // Set selected riders after modal is created
-            for (let position = 1; position <= riders.length; position++) {
+            for (let position = 1; position <= initialRows; position++) {
                 const existingResult = resultsByPosition[position];
                 if (existingResult) {
                     const select = document.getElementById(`rider-${position}`);
@@ -1188,32 +2025,158 @@ const UI = {
         });
     },
 
+    // Add more result rows dynamically
+    addMoreResultRows(raceId, currentRows) {
+        const riders = DataManager.getAllRiders();
+        const tbody = document.getElementById('results-tbody');
+        if (!tbody) return;
+
+        // Create rider options for dropdowns
+        let riderOptions = '<option value="">-- Vælg rytter --</option>';
+        riders.forEach(rider => {
+            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
+        });
+
+        // Add 5 more rows
+        for (let i = 1; i <= 5; i++) {
+            const position = currentRows + i;
+            const row = document.createElement('tr');
+            row.id = `result-row-${position}`;
+            row.innerHTML = `
+                <td style="text-align: center; font-weight: bold;">${position}.</td>
+                <td>
+                    <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                        ${riderOptions}
+                    </select>
+                </td>
+                <td>
+                    <select id="status-${position}" style="width: 100%; padding: 5px;">
+                        <option value="">Normal</option>
+                        <option value="DNF">DNF</option>
+                        <option value="DSQ">DSQ</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="text"
+                           id="time-${position}"
+                           placeholder="4:23:15"
+                           style="width: 100%; padding: 5px;">
+                </td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        // Update button to add more from new position
+        const button = event.target;
+        if (button) {
+            button.onclick = () => UI.addMoreResultRows(raceId, currentRows + 5);
+        }
+    },
+
+    // Add more stage result rows dynamically
+    addMoreStageResultRows(raceId, stageId, currentRows, stageType) {
+        const riders = DataManager.getAllRiders();
+        const tbody = document.getElementById('results-tbody');
+        if (!tbody) return;
+
+        // Create rider options for dropdowns
+        let riderOptions = '<option value="">-- Vælg rytter --</option>';
+        riders.forEach(rider => {
+            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
+        });
+
+        // Add 5 more rows
+        for (let i = 1; i <= 5; i++) {
+            const position = currentRows + i;
+            const finishPoints = PointsCalculator.getStageFinishPoints(stageType, position);
+            const row = document.createElement('tr');
+            row.id = `stage-result-row-${position}`;
+            row.innerHTML = `
+                <td style="text-align: center; font-weight: bold;">${position}.</td>
+                <td>
+                    <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                        ${riderOptions}
+                    </select>
+                </td>
+                <td>
+                    <input type="text"
+                           id="time-${position}"
+                           placeholder="4:23:15"
+                           style="width: 100%; padding: 5px;">
+                </td>
+                <td style="text-align: center;">${finishPoints}p</td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        // Update button to add more from new position
+        const button = event.target;
+        if (button) {
+            button.onclick = () => UI.addMoreStageResultRows(raceId, stageId, currentRows + 5, stageType);
+        }
+    },
+
     // Save batch one-day results
     saveBatchOneDayResults(raceId) {
+        const race = DataManager.getRaceById(raceId);
         const riders = DataManager.getAllRiders();
         const results = [];
+        const errors = [];
 
-        // Loop through positions instead of riders
-        for (let position = 1; position <= riders.length; position++) {
+        // Loop through all possible positions (check up to 200 positions to handle dynamically added rows)
+        for (let position = 1; position <= 200; position++) {
             const riderSelect = document.getElementById(`rider-${position}`);
             const timeInput = document.getElementById(`time-${position}`);
+            const statusSelect = document.getElementById(`status-${position}`);
 
-            const riderId = riderSelect ? riderSelect.value : '';
-            const time = timeInput ? timeInput.value.trim() : '';
+            // Stop if we reach a position that doesn't exist
+            if (!riderSelect || !timeInput || !statusSelect) break;
 
-            // Only add if both rider and time are provided
-            if (riderId && time) {
-                results.push({
-                    riderId: riderId,
-                    time: time,
-                    position: position
-                });
+            const riderId = riderSelect.value;
+            const time = timeInput.value.trim();
+            const status = statusSelect.value;
+
+            // Only add if rider is selected
+            if (riderId) {
+                // Handle DNF/DSQ status
+                if (status === 'DNF' || status === 'DSQ') {
+                    results.push({
+                        riderId: riderId,
+                        time: status,
+                        position: position,
+                        status: status
+                    });
+                } else if (time) {
+                    // Normal finish - validate time format
+                    const validation = DataManager.validateTimeFormat(time);
+                    if (!validation.valid) {
+                        errors.push(`Position ${position}: ${validation.error}`);
+                    } else {
+                        results.push({
+                            riderId: riderId,
+                            time: validation.formatted,
+                            position: position
+                        });
+                    }
+                }
             }
+        }
+
+        if (errors.length > 0) {
+            alert('Fejl i tidsformater:\n\n' + errors.join('\n'));
+            return;
         }
 
         if (results.length === 0) {
             alert('Indtast venligst mindst ét resultat');
             return;
+        }
+
+        // Warn if overwriting existing results
+        if (race.results.length > 0) {
+            if (!confirm(`Dette vil overskrive ${race.results.length} eksisterende resultat(er).\n\nEr du sikker?`)) {
+                return;
+            }
         }
 
         DataManager.addBatchOneDayResults(raceId, results);
@@ -1242,17 +2205,28 @@ const UI = {
             });
         }
 
-        // Create rows for each position
+        // Determine how many rows to show initially
+        const maxResults = Math.max(...Object.keys(resultsByPosition).map(Number), 0);
+        const initialRows = Math.max(15, maxResults + 3);
+
+        // Create rows for positions
         let tableRows = '';
-        for (let position = 1; position <= riders.length; position++) {
+        for (let position = 1; position <= initialRows; position++) {
             const existingResult = resultsByPosition[position];
             const finishPoints = PointsCalculator.getStageFinishPoints(stageType, position);
             tableRows += `
-                <tr>
+                <tr id="stage-result-row-${position}">
                     <td style="text-align: center; font-weight: bold;">${position}.</td>
                     <td>
                         <select id="rider-${position}" style="width: 100%; padding: 5px;">
                             ${riderOptions}
+                        </select>
+                    </td>
+                    <td>
+                        <select id="status-${position}" style="width: 100%; padding: 5px;">
+                            <option value="">Normal</option>
+                            <option value="DNF" ${existingResult && existingResult.status === 'DNF' ? 'selected' : ''}>DNF</option>
+                            <option value="DSQ" ${existingResult && existingResult.status === 'DSQ' ? 'selected' : ''}>DSQ</option>
                         </select>
                     </td>
                     <td>
@@ -1276,22 +2250,26 @@ const UI = {
                         <tr style="position: sticky; top: 0; background: white;">
                             <th style="text-align: center; padding: 8px; width: 60px;">Plac.</th>
                             <th style="text-align: left; padding: 8px;">Rytter</th>
+                            <th style="text-align: left; padding: 8px; width: 100px;">Status</th>
                             <th style="text-align: left; padding: 8px; width: 120px;">Tid</th>
                             <th style="text-align: center; padding: 8px; width: 80px;">Sprint P.</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="results-tbody">
                         ${tableRows}
                     </tbody>
                 </table>
             </div>
-            <div style="margin-top: 20px;">
+            <div style="margin-top: 15px;">
+                <button class="btn btn-secondary" onclick="UI.addMoreStageResultRows('${raceId}', '${stageId}', ${initialRows}, '${stageType}')">➕ Tilføj 5 Rækker</button>
+            </div>
+            <div style="margin-top: 10px;">
                 <button class="btn btn-success" onclick="UI.saveBatchStageResults('${raceId}', '${stageId}')">Gem Alle Resultater</button>
                 <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
             </div>
         `, () => {
             // Set selected riders after modal is created
-            for (let position = 1; position <= riders.length; position++) {
+            for (let position = 1; position <= initialRows; position++) {
                 const existingResult = resultsByPosition[position];
                 if (existingResult) {
                     const select = document.getElementById(`rider-${position}`);
@@ -1303,25 +2281,54 @@ const UI = {
 
     // Save batch stage results
     saveBatchStageResults(raceId, stageId) {
+        const race = DataManager.getRaceById(raceId);
+        const stage = race.stages.find(s => s.id === stageId);
         const riders = DataManager.getAllRiders();
         const results = [];
+        const errors = [];
 
-        // Loop through positions instead of riders
-        for (let position = 1; position <= riders.length; position++) {
+        // Loop through all possible positions (check up to 200 positions to handle dynamically added rows)
+        for (let position = 1; position <= 200; position++) {
             const riderSelect = document.getElementById(`rider-${position}`);
             const timeInput = document.getElementById(`time-${position}`);
+            const statusSelect = document.getElementById(`status-${position}`);
 
-            const riderId = riderSelect ? riderSelect.value : '';
-            const time = timeInput ? timeInput.value.trim() : '';
+            // Stop if we reach a position that doesn't exist
+            if (!riderSelect || !timeInput || !statusSelect) break;
 
-            // Only add if both rider and time are provided
-            if (riderId && time) {
-                results.push({
-                    riderId: riderId,
-                    time: time,
-                    position: position
-                });
+            const riderId = riderSelect.value;
+            const time = timeInput.value.trim();
+            const status = statusSelect.value;
+
+            // Only add if rider is selected
+            if (riderId) {
+                // Handle DNF/DSQ status
+                if (status === 'DNF' || status === 'DSQ') {
+                    results.push({
+                        riderId: riderId,
+                        time: status,
+                        position: position,
+                        status: status
+                    });
+                } else if (time) {
+                    // Normal finish - validate time format
+                    const validation = DataManager.validateTimeFormat(time);
+                    if (!validation.valid) {
+                        errors.push(`Position ${position}: ${validation.error}`);
+                    } else {
+                        results.push({
+                            riderId: riderId,
+                            time: validation.formatted,
+                            position: position
+                        });
+                    }
+                }
             }
+        }
+
+        if (errors.length > 0) {
+            alert('Fejl i tidsformater:\n\n' + errors.join('\n'));
+            return;
         }
 
         if (results.length === 0) {
@@ -1329,9 +2336,38 @@ const UI = {
             return;
         }
 
+        // Warn if overwriting existing results
+        if (stage.results.length > 0) {
+            if (!confirm(`Dette vil overskrive ${stage.results.length} eksisterende resultat(er).\n\nEr du sikker?`)) {
+                return;
+            }
+        }
+
         DataManager.addBatchStageResults(raceId, stageId, results);
         this.closeModal();
         this.viewRace(raceId);
+    },
+
+    // Confirm clear one-day results
+    confirmClearOneDayResults(raceId, raceName) {
+        if (confirm(`Er du sikker på at du vil rydde ALLE resultater for "${raceName}"?\n\nDette kan ikke fortrydes.`)) {
+            if (DataManager.clearOneDayResults(raceId)) {
+                this.viewRace(raceId);
+            } else {
+                alert('Fejl ved rydning af resultater');
+            }
+        }
+    },
+
+    // Confirm clear stage results
+    confirmClearStageResults(raceId, stageId, stageName) {
+        if (confirm(`Er du sikker på at du vil rydde ALLE resultater for "${stageName}"?\n\nDette kan ikke fortrydes.`)) {
+            if (DataManager.clearStageResults(raceId, stageId)) {
+                this.viewRace(raceId);
+            } else {
+                alert('Fejl ved rydning af resultater');
+            }
+        }
     },
 
     // Show add mountain form
@@ -1643,13 +2679,213 @@ const UI = {
         this.viewRace(raceId);
     },
 
+    // CSV Export functions
+    exportRiderStandingsCSV() {
+        const game = DataManager.getCurrentGame();
+        if (!game || game.riderStandings.length === 0) {
+            alert('Ingen rytter data at eksportere.');
+            return;
+        }
+
+        // Create CSV header
+        let csv = 'Position,Rytter,Hold,World Tour Point,Sejre\n';
+
+        // Sort by points (descending)
+        const sortedRiders = [...game.riderStandings].sort((a, b) => b.worldTourPoints - a.worldTourPoints);
+
+        // Add data rows
+        sortedRiders.forEach((standing, index) => {
+            const rider = DataManager.getRiderById(standing.riderId);
+            const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+            const riderName = rider ? rider.name : 'Ukendt';
+            const teamName = team ? team.name : 'Ukendt';
+
+            csv += `${index + 1},"${riderName}","${teamName}",${standing.worldTourPoints},${standing.wins}\n`;
+        });
+
+        this.downloadCSV(csv, `${game.name}_rytter_stilling.csv`);
+    },
+
+    exportTeamStandingsCSV() {
+        const game = DataManager.getCurrentGame();
+        if (!game || game.teamStandings.length === 0) {
+            alert('Ingen hold data at eksportere.');
+            return;
+        }
+
+        // Create CSV header
+        let csv = 'Position,Hold,Spiller,World Tour Point\n';
+
+        // Sort by points (descending)
+        const sortedTeams = [...game.teamStandings].sort((a, b) => b.worldTourPoints - a.worldTourPoints);
+
+        // Add data rows
+        sortedTeams.forEach((standing, index) => {
+            const team = DataManager.getTeamById(standing.teamId);
+            const player = team ? DataManager.getPlayerById(team.playerId) : null;
+            const teamName = team ? team.name : 'Ukendt';
+            const playerName = player ? player.name : 'Ukendt';
+
+            csv += `${index + 1},"${teamName}","${playerName}",${standing.worldTourPoints}\n`;
+        });
+
+        this.downloadCSV(csv, `${game.name}_hold_stilling.csv`);
+    },
+
+    exportRaceResultsCSV(raceId) {
+        const game = DataManager.getCurrentGame();
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) {
+            alert('Løb ikke fundet.');
+            return;
+        }
+
+        let csv = '';
+
+        if (race.type === 'one-day') {
+            // One-day race export
+            csv = 'Position,Rytter,Hold,Tid,Point\n';
+
+            race.results.forEach(result => {
+                const rider = DataManager.getRiderById(result.riderId);
+                const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                const riderName = rider ? rider.name : 'Ukendt';
+                const teamName = team ? team.name : 'Ukendt';
+
+                csv += `${result.position},"${riderName}","${teamName}","${result.time}",${result.points}\n`;
+            });
+        } else if (race.type === 'stage') {
+            // Stage race export - include GC
+            csv = 'Type,Stage,Position,Rytter,Hold,Tid,Point\n';
+
+            // Export each stage
+            race.stages.forEach(stage => {
+                stage.results.forEach(result => {
+                    const rider = DataManager.getRiderById(result.riderId);
+                    const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                    const riderName = rider ? rider.name : 'Ukendt';
+                    const teamName = team ? team.name : 'Ukendt';
+
+                    csv += `"Etape ${stage.stageNumber}","${stage.name}",${result.position},"${riderName}","${teamName}","${result.time}",${result.points}\n`;
+                });
+            });
+
+            // Export GC
+            if (race.generalClassification && race.generalClassification.length > 0) {
+                race.generalClassification.forEach((gc, index) => {
+                    const rider = DataManager.getRiderById(gc.riderId);
+                    const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                    const riderName = rider ? rider.name : 'Ukendt';
+                    const teamName = team ? team.name : 'Ukendt';
+
+                    csv += `"Samlet","General Classification",${index + 1},"${riderName}","${teamName}","${gc.totalTime}",${gc.totalPoints}\n`;
+                });
+            }
+        }
+
+        const filename = `${game.name}_${race.name}_resultater.csv`.replace(/[^a-z0-9_\-\.]/gi, '_');
+        this.downloadCSV(csv, filename);
+    },
+
+    exportStatisticsCSV() {
+        const game = DataManager.getCurrentGame();
+        if (!game || game.riderStandings.length === 0) {
+            alert('Ingen statistik data at eksportere.');
+            return;
+        }
+
+        // Create CSV header
+        let csv = 'Rytter,Hold,Point,Sejre,Løb Deltaget,Gns. Placering,Bedste Placering,Podier\n';
+
+        // Calculate rider statistics (same logic as showStatisticsTab)
+        const riderStats = game.riderStandings.map(standing => {
+            const rider = DataManager.getRiderById(standing.riderId);
+            const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+
+            let racesParticipated = 0;
+            let totalPositions = 0;
+            let bestPosition = Infinity;
+            let podiums = 0;
+
+            game.races.forEach(race => {
+                if (race.type === 'one-day') {
+                    const result = race.results.find(r => r.riderId === standing.riderId);
+                    if (result) {
+                        racesParticipated++;
+                        totalPositions += result.position;
+                        if (result.position < bestPosition) bestPosition = result.position;
+                        if (result.position <= 3) podiums++;
+                    }
+                } else if (race.type === 'stage') {
+                    let participatedInRace = false;
+                    race.stages.forEach(stage => {
+                        const result = stage.results.find(r => r.riderId === standing.riderId);
+                        if (result && !participatedInRace) {
+                            participatedInRace = true;
+                            racesParticipated++;
+                        }
+                    });
+
+                    if (race.generalClassification) {
+                        const gcPosition = race.generalClassification.findIndex(gc => gc.riderId === standing.riderId);
+                        if (gcPosition !== -1) {
+                            const position = gcPosition + 1;
+                            totalPositions += position;
+                            if (position < bestPosition) bestPosition = position;
+                            if (position <= 3) podiums++;
+                        }
+                    }
+                }
+            });
+
+            const avgPosition = racesParticipated > 0 ? (totalPositions / racesParticipated).toFixed(1) : 'N/A';
+            const bestPos = bestPosition === Infinity ? 'N/A' : bestPosition;
+
+            return {
+                riderName: rider ? rider.name : 'Ukendt',
+                teamName: team ? team.name : 'Ukendt',
+                points: standing.worldTourPoints,
+                wins: standing.wins,
+                races: racesParticipated,
+                avgPosition: avgPosition,
+                bestPosition: bestPos,
+                podiums: podiums
+            };
+        });
+
+        // Sort by points
+        riderStats.sort((a, b) => b.points - a.points);
+
+        // Add data rows
+        riderStats.forEach(stat => {
+            csv += `"${stat.riderName}","${stat.teamName}",${stat.points},${stat.wins},${stat.races},${stat.avgPosition},${stat.bestPosition},${stat.podiums}\n`;
+        });
+
+        this.downloadCSV(csv, `${game.name}_statistik.csv`);
+    },
+
+    downloadCSV(content, filename) {
+        // Create a Blob with BOM for proper Excel encoding
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + content], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    },
+
     // Create modal
     createModal(title, content, callback) {
         // Close any existing modals first
         this.closeModal();
 
         const modalHtml = `
-            <div id="modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+            <div id="modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="if(event.target.id === 'modal-overlay') UI.closeModal()">
                 <div style="background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2>${title}</h2>
@@ -1664,10 +2900,23 @@ const UI = {
         modalContainer.innerHTML = modalHtml;
         document.body.appendChild(modalContainer);
 
+        // Add ESC key handler
+        this._escKeyHandler = (event) => {
+            if (event.key === 'Escape') {
+                this.closeModal();
+            }
+        };
+        document.addEventListener('keydown', this._escKeyHandler);
+
         // Call callback after modal is added to DOM
         if (callback && typeof callback === 'function') {
             setTimeout(callback, 0);
         }
+    },
+
+    // Show modal (alias for createModal)
+    showModal(content) {
+        this.createModal('', content);
     },
 
     // Close modal
@@ -1676,16 +2925,123 @@ const UI = {
         if (modal) {
             modal.parentElement.remove();
         }
+
+        // Remove ESC key handler
+        if (this._escKeyHandler) {
+            document.removeEventListener('keydown', this._escKeyHandler);
+            this._escKeyHandler = null;
+        }
     },
 
     // Update game info in header
     updateGameInfo() {
         const game = DataManager.getCurrentGame();
         if (game) {
-            this.currentGameInfo.innerHTML = `Nuværende Spil: <strong>${game.name}</strong> | <a href="#" onclick="UI.showHome(); return false;" style="color: white;">Skift Spil</a>`;
+            this.currentGameInfo.innerHTML = `Nuværende Spil: <strong>${game.name}</strong> | <a href="#" onclick="UI.showHome(); return false;" style="color: white;">Skift Spil</a> | <a href="#" onclick="UI.showSearch(); return false;" style="color: white;">🔍 Søg</a>`;
         } else {
             this.currentGameInfo.innerHTML = '';
         }
+    },
+
+    // Show search dialog
+    showSearch() {
+        this.showModal(`
+            <h2>🔍 Søg</h2>
+            <div class="form-group">
+                <input type="text" id="search-input" placeholder="Søg efter rytter, hold eller løb..." style="width: 100%; padding: 10px; font-size: 1em;" oninput="UI.performSearch()">
+            </div>
+            <div id="search-results" style="max-height: 400px; overflow-y: auto;"></div>
+        `);
+        // Focus on search input
+        setTimeout(() => {
+            document.getElementById('search-input')?.focus();
+        }, 100);
+    },
+
+    // Perform search
+    performSearch() {
+        const query = document.getElementById('search-input')?.value.trim().toLowerCase();
+        const resultsDiv = document.getElementById('search-results');
+
+        if (!query || query.length < 2) {
+            resultsDiv.innerHTML = '<p style="color: #7f8c8d;">Indtast mindst 2 tegn for at søge...</p>';
+            return;
+        }
+
+        const game = DataManager.getCurrentGame();
+        let html = '';
+        let foundResults = false;
+
+        // Search riders
+        const matchingRiders = [];
+        game.teams.forEach(team => {
+            if (team.riders) {
+                team.riders.forEach(rider => {
+                    if (rider.name.toLowerCase().includes(query)) {
+                        matchingRiders.push({
+                            rider: rider,
+                            team: team,
+                            standing: game.riderStandings.find(rs => rs.riderId === rider.id)
+                        });
+                    }
+                });
+            }
+        });
+
+        if (matchingRiders.length > 0) {
+            foundResults = true;
+            html += '<h3>Ryttere</h3>';
+            html += '<ul style="list-style: none; padding: 0;">';
+            matchingRiders.forEach(match => {
+                const points = match.standing ? match.standing.worldTourPoints : 0;
+                const wins = match.standing ? match.standing.wins : 0;
+                html += `<li style="padding: 10px; border-bottom: 1px solid #ecf0f1; cursor: pointer;" onclick="UI.closeModal(); UI.showGameDashboard(); UI.showTab('standings');">`;
+                html += `<strong>${match.rider.name}</strong> - ${match.team.name}<br>`;
+                html += `<small style="color: #7f8c8d;">Point: ${points} | Sejre: ${wins}</small>`;
+                html += `</li>`;
+            });
+            html += '</ul>';
+        }
+
+        // Search teams
+        const matchingTeams = game.teams.filter(team => team.name.toLowerCase().includes(query));
+        if (matchingTeams.length > 0) {
+            foundResults = true;
+            html += '<h3>Hold</h3>';
+            html += '<ul style="list-style: none; padding: 0;">';
+            matchingTeams.forEach(team => {
+                const player = DataManager.getPlayerById(team.playerId);
+                const standing = game.teamStandings.find(ts => ts.teamId === team.id);
+                const points = standing ? standing.worldTourPoints : 0;
+                html += `<li style="padding: 10px; border-bottom: 1px solid #ecf0f1; cursor: pointer;" onclick="UI.closeModal(); UI.showGameDashboard(); UI.showTab('players');">`;
+                html += `<strong>${team.name}</strong> - ${player ? player.name : 'Ukendt'}<br>`;
+                html += `<small style="color: #7f8c8d;">Point: ${points} | Ryttere: ${team.riders.length}</small>`;
+                html += `</li>`;
+            });
+            html += '</ul>';
+        }
+
+        // Search races
+        const matchingRaces = game.races.filter(race => race.name.toLowerCase().includes(query));
+        if (matchingRaces.length > 0) {
+            foundResults = true;
+            html += '<h3>Løb</h3>';
+            html += '<ul style="list-style: none; padding: 0;">';
+            matchingRaces.forEach(race => {
+                const date = race.date ? new Date(race.date).toLocaleDateString('da-DK') : '';
+                html += `<li style="padding: 10px; border-bottom: 1px solid #ecf0f1; cursor: pointer;" onclick="UI.closeModal(); UI.viewRace('${race.id}');">`;
+                html += `<strong>${race.name}</strong><br>`;
+                html += `<small style="color: #7f8c8d;">${PointsCalculator.getRaceTypeName(race.type)}${date ? ' - ' + date : ''}</small>`;
+                html += `</li>`;
+            });
+            html += '</ul>';
+        }
+
+        if (!foundResults) {
+            html = '<p style="color: #e74c3c;">Ingen resultater fundet.</p>';
+        }
+
+        resultsDiv.innerHTML = html;
     },
 
     // Export data (download backup)
