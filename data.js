@@ -140,7 +140,7 @@ const DataManager = {
     },
 
     // Add team to current game
-    addTeam(teamName, playerId) {
+    addTeam(teamName, playerId, color = '#3498db') {
         const data = this.getData();
 
         if (!data.currentGameId) return null;
@@ -151,7 +151,8 @@ const DataManager = {
             id: 'team-' + Date.now(),
             name: teamName,
             playerId: playerId,
-            riders: []
+            riders: [],
+            color: color || '#3498db'  // Default blue color
         };
         game.teams.push(team);
 

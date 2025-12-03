@@ -98,6 +98,7 @@ const UI = {
         html += '<button class="nav-tab" onclick="UI.showTab(\'players\', event)">Spillere & Hold</button>';
         html += '<button class="nav-tab" onclick="UI.showTab(\'races\', event)">Løb</button>';
         html += '<button class="nav-tab" onclick="UI.showTab(\'standings\', event)">Resultater</button>';
+        html += '<button class="nav-tab" onclick="UI.showTab(\'statistics\', event)">Statistik</button>';
         html += '</div>';
         html += '<div id="tab-content"></div>';
 
@@ -141,6 +142,9 @@ const UI = {
                 break;
             case 'standings':
                 this.showStandingsTab(tabContent);
+                break;
+            case 'statistics':
+                this.showStatisticsTab(tabContent);
                 break;
         }
     },
@@ -426,7 +430,10 @@ const UI = {
         const game = DataManager.getCurrentGame();
 
         let html = '<div class="card">';
+        html += '<div class="flex-between">';
         html += '<h2>Rytter Stilling</h2>';
+        html += '<button class="btn btn-success" onclick="UI.exportRiderStandingsCSV()">📥 Eksporter CSV</button>';
+        html += '</div>';
 
         if (game.riderStandings.length === 0) {
             html += '<p>Ingen data endnu.</p>';
@@ -480,10 +487,11 @@ const UI = {
             sortedRiders.forEach((standing, index) => {
                 const rider = DataManager.getRiderById(standing.riderId);
                 const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                const teamColor = team && team.color ? team.color : '#95a5a6';
                 html += '<tr>';
                 html += `<td>${index + 1}</td>`;
                 html += `<td>${rider ? rider.name : 'Ukendt'}</td>`;
-                html += `<td>${team ? team.name : 'Ukendt'}</td>`;
+                html += `<td><span style="display: inline-block; width: 12px; height: 12px; background: ${teamColor}; border-radius: 50%; margin-right: 8px; vertical-align: middle;"></span>${team ? team.name : 'Ukendt'}</td>`;
                 html += `<td><strong>${standing.worldTourPoints}</strong></td>`;
                 html += `<td>${standing.wins}</td>`;
                 html += '</tr>';
@@ -493,7 +501,10 @@ const UI = {
         html += '</div>';
 
         html += '<div class="card mt-20">';
+        html += '<div class="flex-between">';
         html += '<h2>Hold Stilling</h2>';
+        html += '<button class="btn btn-success" onclick="UI.exportTeamStandingsCSV()">📥 Eksporter CSV</button>';
+        html += '</div>';
 
         if (game.teamStandings.length === 0) {
             html += '<p>Ingen data endnu.</p>';
@@ -543,9 +554,10 @@ const UI = {
             sortedTeams.forEach((standing, index) => {
                 const team = DataManager.getTeamById(standing.teamId);
                 const player = team ? DataManager.getPlayerById(team.playerId) : null;
+                const teamColor = team && team.color ? team.color : '#95a5a6';
                 html += '<tr>';
                 html += `<td>${index + 1}</td>`;
-                html += `<td>${team ? team.name : 'Ukendt'}</td>`;
+                html += `<td><span style="display: inline-block; width: 12px; height: 12px; background: ${teamColor}; border-radius: 50%; margin-right: 8px; vertical-align: middle;"></span>${team ? team.name : 'Ukendt'}</td>`;
                 html += `<td>${player ? player.name : 'Ukendt'}</td>`;
                 html += `<td><strong>${standing.worldTourPoints}</strong></td>`;
                 html += '</tr>';
@@ -585,6 +597,247 @@ const UI = {
         }
         this.showGameDashboard();
         this.showTab('standings');
+    },
+
+    // Show statistics tab
+    showStatisticsTab(container) {
+        const game = DataManager.getCurrentGame();
+
+        let html = '<div class="card">';
+        html += '<div class="flex-between">';
+        html += '<h2>📊 Statistik Dashboard</h2>';
+        html += '<button class="btn btn-success" onclick="UI.exportStatisticsCSV()">📥 Eksporter CSV</button>';
+        html += '</div>';
+        html += '</div>';
+
+        // Rider statistics
+        html += '<div class="card">';
+        html += '<h3>Rytter Statistik</h3>';
+
+        if (game.riderStandings.length === 0) {
+            html += '<p>Ingen rytter data endnu.</p>';
+        } else {
+            // Calculate rider statistics
+            const riderStats = game.riderStandings.map(standing => {
+                const rider = DataManager.getRiderById(standing.riderId);
+                const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+
+                // Count races participated
+                let racesParticipated = 0;
+                let totalPositions = 0;
+                let bestPosition = Infinity;
+                let podiums = 0; // Top 3 finishes
+
+                game.races.forEach(race => {
+                    if (race.type === 'one-day') {
+                        const result = race.results.find(r => r.riderId === standing.riderId);
+                        if (result) {
+                            racesParticipated++;
+                            totalPositions += result.position;
+                            if (result.position < bestPosition) bestPosition = result.position;
+                            if (result.position <= 3) podiums++;
+                        }
+                    } else if (race.type === 'stage') {
+                        // Check if rider participated in any stage
+                        let participatedInRace = false;
+                        race.stages.forEach(stage => {
+                            const result = stage.results.find(r => r.riderId === standing.riderId);
+                            if (result && !participatedInRace) {
+                                participatedInRace = true;
+                                racesParticipated++;
+                            }
+                        });
+
+                        // Check GC position
+                        if (race.generalClassification) {
+                            const gcPosition = race.generalClassification.findIndex(gc => gc.riderId === standing.riderId);
+                            if (gcPosition !== -1) {
+                                const position = gcPosition + 1;
+                                totalPositions += position;
+                                if (position < bestPosition) bestPosition = position;
+                                if (position <= 3) podiums++;
+                            }
+                        }
+                    }
+                });
+
+                const avgPosition = racesParticipated > 0 ? (totalPositions / racesParticipated).toFixed(1) : 'N/A';
+                const bestPos = bestPosition === Infinity ? 'N/A' : bestPosition;
+
+                return {
+                    riderId: standing.riderId,
+                    riderName: rider ? rider.name : 'Ukendt',
+                    teamName: team ? team.name : 'Ukendt',
+                    points: standing.worldTourPoints,
+                    wins: standing.wins,
+                    races: racesParticipated,
+                    avgPosition: avgPosition,
+                    bestPosition: bestPos,
+                    podiums: podiums
+                };
+            });
+
+            // Sort by points (descending)
+            riderStats.sort((a, b) => b.points - a.points);
+
+            // Show top 15 riders
+            const topRiders = riderStats.slice(0, 15);
+
+            html += '<table>';
+            html += '<tr>';
+            html += '<th>Rytter</th>';
+            html += '<th>Hold</th>';
+            html += '<th>Point</th>';
+            html += '<th>Sejre</th>';
+            html += '<th>Podier</th>';
+            html += '<th>Løb</th>';
+            html += '<th>Gns. Plac.</th>';
+            html += '<th>Bedste</th>';
+            html += '<th>Performance</th>';
+            html += '</tr>';
+
+            topRiders.forEach(stat => {
+                // Calculate performance bar (based on points, max 100% = top rider's points)
+                const maxPoints = topRiders[0].points;
+                const performancePercent = maxPoints > 0 ? Math.round((stat.points / maxPoints) * 100) : 0;
+
+                // Get team color
+                const rider = DataManager.getRiderById(stat.riderId);
+                const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                const teamColor = team && team.color ? team.color : '#95a5a6';
+
+                html += '<tr>';
+                html += `<td><strong>${stat.riderName}</strong></td>`;
+                html += `<td><span style="display: inline-block; width: 12px; height: 12px; background: ${teamColor}; border-radius: 50%; margin-right: 8px; vertical-align: middle;"></span>${stat.teamName}</td>`;
+                html += `<td>${stat.points}</td>`;
+                html += `<td>${stat.wins}</td>`;
+                html += `<td>${stat.podiums}</td>`;
+                html += `<td>${stat.races}</td>`;
+                html += `<td>${stat.avgPosition}</td>`;
+                html += `<td>${stat.bestPosition}</td>`;
+                html += `<td><div style="background: linear-gradient(90deg, #3498db ${performancePercent}%, #ecf0f1 ${performancePercent}%); padding: 5px 10px; border-radius: 4px; text-align: center; font-weight: bold;">${performancePercent}%</div></td>`;
+                html += '</tr>';
+            });
+
+            html += '</table>';
+        }
+        html += '</div>';
+
+        // Team statistics
+        html += '<div class="card">';
+        html += '<h3>Hold Statistik</h3>';
+
+        if (game.teamStandings.length === 0) {
+            html += '<p>Ingen hold data endnu.</p>';
+        } else {
+            // Calculate team statistics
+            const teamStats = game.teamStandings.map(standing => {
+                const team = DataManager.getTeamById(standing.teamId);
+                const player = team ? DataManager.getPlayerById(team.playerId) : null;
+
+                // Count riders in team
+                const riderCount = team ? team.riders.length : 0;
+
+                // Count wins from riders
+                let totalWins = 0;
+                if (team && team.riders) {
+                    team.riders.forEach(rider => {
+                        const riderStanding = game.riderStandings.find(rs => rs.riderId === rider.id);
+                        if (riderStanding) {
+                            totalWins += riderStanding.wins;
+                        }
+                    });
+                }
+
+                const avgPointsPerRider = riderCount > 0 ? (standing.worldTourPoints / riderCount).toFixed(1) : '0.0';
+
+                return {
+                    teamId: standing.teamId,
+                    teamName: team ? team.name : 'Ukendt',
+                    playerName: player ? player.name : 'Ukendt',
+                    points: standing.worldTourPoints,
+                    riderCount: riderCount,
+                    avgPointsPerRider: avgPointsPerRider,
+                    totalWins: totalWins
+                };
+            });
+
+            // Sort by points (descending)
+            teamStats.sort((a, b) => b.points - a.points);
+
+            // Show top 10 teams
+            const topTeams = teamStats.slice(0, 10);
+
+            html += '<table>';
+            html += '<tr>';
+            html += '<th>Hold</th>';
+            html += '<th>Spiller</th>';
+            html += '<th>Total Point</th>';
+            html += '<th>Ryttere</th>';
+            html += '<th>Gns. Point/Rytter</th>';
+            html += '<th>Sejre</th>';
+            html += '<th>Performance</th>';
+            html += '</tr>';
+
+            topTeams.forEach(stat => {
+                // Calculate performance bar
+                const maxPoints = topTeams[0].points;
+                const performancePercent = maxPoints > 0 ? Math.round((stat.points / maxPoints) * 100) : 0;
+
+                // Get team color
+                const team = DataManager.getTeamById(stat.teamId);
+                const teamColor = team && team.color ? team.color : '#95a5a6';
+
+                html += '<tr>';
+                html += `<td><span style="display: inline-block; width: 12px; height: 12px; background: ${teamColor}; border-radius: 50%; margin-right: 8px; vertical-align: middle;"></span><strong>${stat.teamName}</strong></td>`;
+                html += `<td>${stat.playerName}</td>`;
+                html += `<td>${stat.points}</td>`;
+                html += `<td>${stat.riderCount}</td>`;
+                html += `<td>${stat.avgPointsPerRider}</td>`;
+                html += `<td>${stat.totalWins}</td>`;
+                html += `<td><div style="background: linear-gradient(90deg, #27ae60 ${performancePercent}%, #ecf0f1 ${performancePercent}%); padding: 5px 10px; border-radius: 4px; text-align: center; font-weight: bold;">${performancePercent}%</div></td>`;
+                html += '</tr>';
+            });
+
+            html += '</table>';
+        }
+        html += '</div>';
+
+        // Race statistics
+        html += '<div class="card">';
+        html += '<h3>Løb Statistik</h3>';
+
+        if (game.races.length === 0) {
+            html += '<p>Ingen løb endnu.</p>';
+        } else {
+            const oneDayRaces = game.races.filter(r => r.type === 'one-day').length;
+            const stageRaces = game.races.filter(r => r.type === 'stage').length;
+            const totalStages = game.races
+                .filter(r => r.type === 'stage')
+                .reduce((sum, race) => sum + race.stages.length, 0);
+
+            html += '<div class="grid grid-3">';
+            html += `<div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #3498db, #5DADE2); color: white; border-radius: 8px;">`;
+            html += `<h2 style="margin: 0; color: white;">${game.races.length}</h2>`;
+            html += `<p style="margin: 5px 0 0 0;">Total Løb</p>`;
+            html += `</div>`;
+            html += `<div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #27ae60, #58D68D); color: white; border-radius: 8px;">`;
+            html += `<h2 style="margin: 0; color: white;">${oneDayRaces}</h2>`;
+            html += `<p style="margin: 5px 0 0 0;">Endagsløb</p>`;
+            html += `</div>`;
+            html += `<div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #e74c3c, #EC7063); color: white; border-radius: 8px;">`;
+            html += `<h2 style="margin: 0; color: white;">${stageRaces}</h2>`;
+            html += `<p style="margin: 5px 0 0 0;">Etapeløb</p>`;
+            html += `</div>`;
+            html += `</div>`;
+
+            if (stageRaces > 0) {
+                html += `<p style="margin-top: 15px; text-align: center; color: #7f8c8d;">Total etaper: <strong>${totalStages}</strong> | Gennemsnit pr. løb: <strong>${(totalStages / stageRaces).toFixed(1)}</strong></p>`;
+            }
+        }
+        html += '</div>';
+
+        container.innerHTML = html;
     },
 
     // Show add player form
@@ -656,6 +909,10 @@ const UI = {
                     ${playerOptions}
                 </select>
             </div>
+            <div class="form-group">
+                <label>Holdfarve</label>
+                <input type="color" id="team-color" value="#3498db" style="width: 100%; height: 40px; cursor: pointer;">
+            </div>
             <button class="btn btn-success" onclick="UI.addTeam()">Tilføj Hold</button>
         `);
     },
@@ -665,6 +922,7 @@ const UI = {
         try {
             const name = document.getElementById('team-name').value.trim();
             const playerId = document.getElementById('team-player').value;
+            const color = document.getElementById('team-color').value;
 
             if (!name) {
                 alert('Indtast venligst et holdnavn');
@@ -680,7 +938,7 @@ const UI = {
                 }
             }
 
-            DataManager.addTeam(name, playerId);
+            DataManager.addTeam(name, playerId, color);
             this.closeModal();
 
             // Small delay to ensure modal is fully closed
@@ -1549,6 +1807,13 @@ const UI = {
                         ${existingResult ? `<script>document.getElementById('rider-${position}').value = '${existingResult.riderId}';</script>` : ''}
                     </td>
                     <td>
+                        <select id="status-${position}" style="width: 100%; padding: 5px;">
+                            <option value="">Normal</option>
+                            <option value="DNF" ${existingResult && existingResult.status === 'DNF' ? 'selected' : ''}>DNF</option>
+                            <option value="DSQ" ${existingResult && existingResult.status === 'DSQ' ? 'selected' : ''}>DSQ</option>
+                        </select>
+                    </td>
+                    <td>
                         <input type="text"
                                id="time-${position}"
                                value="${existingResult ? existingResult.time : ''}"
@@ -1567,6 +1832,7 @@ const UI = {
                         <tr style="position: sticky; top: 0; background: white;">
                             <th style="text-align: center; padding: 8px; width: 60px;">Plac.</th>
                             <th style="text-align: left; padding: 8px;">Rytter</th>
+                            <th style="text-align: left; padding: 8px; width: 100px;">Status</th>
                             <th style="text-align: left; padding: 8px; width: 120px;">Tid</th>
                         </tr>
                     </thead>
@@ -1616,6 +1882,13 @@ const UI = {
                 <td>
                     <select id="rider-${position}" style="width: 100%; padding: 5px;">
                         ${riderOptions}
+                    </select>
+                </td>
+                <td>
+                    <select id="status-${position}" style="width: 100%; padding: 5px;">
+                        <option value="">Normal</option>
+                        <option value="DNF">DNF</option>
+                        <option value="DSQ">DSQ</option>
                     </select>
                 </td>
                 <td>
@@ -1689,25 +1962,37 @@ const UI = {
         for (let position = 1; position <= 200; position++) {
             const riderSelect = document.getElementById(`rider-${position}`);
             const timeInput = document.getElementById(`time-${position}`);
+            const statusSelect = document.getElementById(`status-${position}`);
 
             // Stop if we reach a position that doesn't exist
-            if (!riderSelect || !timeInput) break;
+            if (!riderSelect || !timeInput || !statusSelect) break;
 
             const riderId = riderSelect.value;
             const time = timeInput.value.trim();
+            const status = statusSelect.value;
 
-            // Only add if both rider and time are provided
-            if (riderId && time) {
-                // Validate time format
-                const validation = DataManager.validateTimeFormat(time);
-                if (!validation.valid) {
-                    errors.push(`Position ${position}: ${validation.error}`);
-                } else {
+            // Only add if rider is selected
+            if (riderId) {
+                // Handle DNF/DSQ status
+                if (status === 'DNF' || status === 'DSQ') {
                     results.push({
                         riderId: riderId,
-                        time: validation.formatted,
-                        position: position
+                        time: status,
+                        position: position,
+                        status: status
                     });
+                } else if (time) {
+                    // Normal finish - validate time format
+                    const validation = DataManager.validateTimeFormat(time);
+                    if (!validation.valid) {
+                        errors.push(`Position ${position}: ${validation.error}`);
+                    } else {
+                        results.push({
+                            riderId: riderId,
+                            time: validation.formatted,
+                            position: position
+                        });
+                    }
                 }
             }
         }
@@ -1773,6 +2058,13 @@ const UI = {
                         </select>
                     </td>
                     <td>
+                        <select id="status-${position}" style="width: 100%; padding: 5px;">
+                            <option value="">Normal</option>
+                            <option value="DNF" ${existingResult && existingResult.status === 'DNF' ? 'selected' : ''}>DNF</option>
+                            <option value="DSQ" ${existingResult && existingResult.status === 'DSQ' ? 'selected' : ''}>DSQ</option>
+                        </select>
+                    </td>
+                    <td>
                         <input type="text"
                                id="time-${position}"
                                value="${existingResult ? existingResult.time : ''}"
@@ -1793,6 +2085,7 @@ const UI = {
                         <tr style="position: sticky; top: 0; background: white;">
                             <th style="text-align: center; padding: 8px; width: 60px;">Plac.</th>
                             <th style="text-align: left; padding: 8px;">Rytter</th>
+                            <th style="text-align: left; padding: 8px; width: 100px;">Status</th>
                             <th style="text-align: left; padding: 8px; width: 120px;">Tid</th>
                             <th style="text-align: center; padding: 8px; width: 80px;">Sprint P.</th>
                         </tr>
@@ -1833,25 +2126,37 @@ const UI = {
         for (let position = 1; position <= 200; position++) {
             const riderSelect = document.getElementById(`rider-${position}`);
             const timeInput = document.getElementById(`time-${position}`);
+            const statusSelect = document.getElementById(`status-${position}`);
 
             // Stop if we reach a position that doesn't exist
-            if (!riderSelect || !timeInput) break;
+            if (!riderSelect || !timeInput || !statusSelect) break;
 
             const riderId = riderSelect.value;
             const time = timeInput.value.trim();
+            const status = statusSelect.value;
 
-            // Only add if both rider and time are provided
-            if (riderId && time) {
-                // Validate time format
-                const validation = DataManager.validateTimeFormat(time);
-                if (!validation.valid) {
-                    errors.push(`Position ${position}: ${validation.error}`);
-                } else {
+            // Only add if rider is selected
+            if (riderId) {
+                // Handle DNF/DSQ status
+                if (status === 'DNF' || status === 'DSQ') {
                     results.push({
                         riderId: riderId,
-                        time: validation.formatted,
-                        position: position
+                        time: status,
+                        position: position,
+                        status: status
                     });
+                } else if (time) {
+                    // Normal finish - validate time format
+                    const validation = DataManager.validateTimeFormat(time);
+                    if (!validation.valid) {
+                        errors.push(`Position ${position}: ${validation.error}`);
+                    } else {
+                        results.push({
+                            riderId: riderId,
+                            time: validation.formatted,
+                            position: position
+                        });
+                    }
                 }
             }
         }
@@ -2207,6 +2512,206 @@ const UI = {
 
         this.closeModal();
         this.viewRace(raceId);
+    },
+
+    // CSV Export functions
+    exportRiderStandingsCSV() {
+        const game = DataManager.getCurrentGame();
+        if (!game || game.riderStandings.length === 0) {
+            alert('Ingen rytter data at eksportere.');
+            return;
+        }
+
+        // Create CSV header
+        let csv = 'Position,Rytter,Hold,World Tour Point,Sejre\n';
+
+        // Sort by points (descending)
+        const sortedRiders = [...game.riderStandings].sort((a, b) => b.worldTourPoints - a.worldTourPoints);
+
+        // Add data rows
+        sortedRiders.forEach((standing, index) => {
+            const rider = DataManager.getRiderById(standing.riderId);
+            const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+            const riderName = rider ? rider.name : 'Ukendt';
+            const teamName = team ? team.name : 'Ukendt';
+
+            csv += `${index + 1},"${riderName}","${teamName}",${standing.worldTourPoints},${standing.wins}\n`;
+        });
+
+        this.downloadCSV(csv, `${game.name}_rytter_stilling.csv`);
+    },
+
+    exportTeamStandingsCSV() {
+        const game = DataManager.getCurrentGame();
+        if (!game || game.teamStandings.length === 0) {
+            alert('Ingen hold data at eksportere.');
+            return;
+        }
+
+        // Create CSV header
+        let csv = 'Position,Hold,Spiller,World Tour Point\n';
+
+        // Sort by points (descending)
+        const sortedTeams = [...game.teamStandings].sort((a, b) => b.worldTourPoints - a.worldTourPoints);
+
+        // Add data rows
+        sortedTeams.forEach((standing, index) => {
+            const team = DataManager.getTeamById(standing.teamId);
+            const player = team ? DataManager.getPlayerById(team.playerId) : null;
+            const teamName = team ? team.name : 'Ukendt';
+            const playerName = player ? player.name : 'Ukendt';
+
+            csv += `${index + 1},"${teamName}","${playerName}",${standing.worldTourPoints}\n`;
+        });
+
+        this.downloadCSV(csv, `${game.name}_hold_stilling.csv`);
+    },
+
+    exportRaceResultsCSV(raceId) {
+        const game = DataManager.getCurrentGame();
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) {
+            alert('Løb ikke fundet.');
+            return;
+        }
+
+        let csv = '';
+
+        if (race.type === 'one-day') {
+            // One-day race export
+            csv = 'Position,Rytter,Hold,Tid,Point\n';
+
+            race.results.forEach(result => {
+                const rider = DataManager.getRiderById(result.riderId);
+                const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                const riderName = rider ? rider.name : 'Ukendt';
+                const teamName = team ? team.name : 'Ukendt';
+
+                csv += `${result.position},"${riderName}","${teamName}","${result.time}",${result.points}\n`;
+            });
+        } else if (race.type === 'stage') {
+            // Stage race export - include GC
+            csv = 'Type,Stage,Position,Rytter,Hold,Tid,Point\n';
+
+            // Export each stage
+            race.stages.forEach(stage => {
+                stage.results.forEach(result => {
+                    const rider = DataManager.getRiderById(result.riderId);
+                    const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                    const riderName = rider ? rider.name : 'Ukendt';
+                    const teamName = team ? team.name : 'Ukendt';
+
+                    csv += `"Etape ${stage.stageNumber}","${stage.name}",${result.position},"${riderName}","${teamName}","${result.time}",${result.points}\n`;
+                });
+            });
+
+            // Export GC
+            if (race.generalClassification && race.generalClassification.length > 0) {
+                race.generalClassification.forEach((gc, index) => {
+                    const rider = DataManager.getRiderById(gc.riderId);
+                    const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                    const riderName = rider ? rider.name : 'Ukendt';
+                    const teamName = team ? team.name : 'Ukendt';
+
+                    csv += `"Samlet","General Classification",${index + 1},"${riderName}","${teamName}","${gc.totalTime}",${gc.totalPoints}\n`;
+                });
+            }
+        }
+
+        const filename = `${game.name}_${race.name}_resultater.csv`.replace(/[^a-z0-9_\-\.]/gi, '_');
+        this.downloadCSV(csv, filename);
+    },
+
+    exportStatisticsCSV() {
+        const game = DataManager.getCurrentGame();
+        if (!game || game.riderStandings.length === 0) {
+            alert('Ingen statistik data at eksportere.');
+            return;
+        }
+
+        // Create CSV header
+        let csv = 'Rytter,Hold,Point,Sejre,Løb Deltaget,Gns. Placering,Bedste Placering,Podier\n';
+
+        // Calculate rider statistics (same logic as showStatisticsTab)
+        const riderStats = game.riderStandings.map(standing => {
+            const rider = DataManager.getRiderById(standing.riderId);
+            const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+
+            let racesParticipated = 0;
+            let totalPositions = 0;
+            let bestPosition = Infinity;
+            let podiums = 0;
+
+            game.races.forEach(race => {
+                if (race.type === 'one-day') {
+                    const result = race.results.find(r => r.riderId === standing.riderId);
+                    if (result) {
+                        racesParticipated++;
+                        totalPositions += result.position;
+                        if (result.position < bestPosition) bestPosition = result.position;
+                        if (result.position <= 3) podiums++;
+                    }
+                } else if (race.type === 'stage') {
+                    let participatedInRace = false;
+                    race.stages.forEach(stage => {
+                        const result = stage.results.find(r => r.riderId === standing.riderId);
+                        if (result && !participatedInRace) {
+                            participatedInRace = true;
+                            racesParticipated++;
+                        }
+                    });
+
+                    if (race.generalClassification) {
+                        const gcPosition = race.generalClassification.findIndex(gc => gc.riderId === standing.riderId);
+                        if (gcPosition !== -1) {
+                            const position = gcPosition + 1;
+                            totalPositions += position;
+                            if (position < bestPosition) bestPosition = position;
+                            if (position <= 3) podiums++;
+                        }
+                    }
+                }
+            });
+
+            const avgPosition = racesParticipated > 0 ? (totalPositions / racesParticipated).toFixed(1) : 'N/A';
+            const bestPos = bestPosition === Infinity ? 'N/A' : bestPosition;
+
+            return {
+                riderName: rider ? rider.name : 'Ukendt',
+                teamName: team ? team.name : 'Ukendt',
+                points: standing.worldTourPoints,
+                wins: standing.wins,
+                races: racesParticipated,
+                avgPosition: avgPosition,
+                bestPosition: bestPos,
+                podiums: podiums
+            };
+        });
+
+        // Sort by points
+        riderStats.sort((a, b) => b.points - a.points);
+
+        // Add data rows
+        riderStats.forEach(stat => {
+            csv += `"${stat.riderName}","${stat.teamName}",${stat.points},${stat.wins},${stat.races},${stat.avgPosition},${stat.bestPosition},${stat.podiums}\n`;
+        });
+
+        this.downloadCSV(csv, `${game.name}_statistik.csv`);
+    },
+
+    downloadCSV(content, filename) {
+        // Create a Blob with BOM for proper Excel encoding
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + content], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     },
 
     // Create modal
