@@ -366,6 +366,46 @@ const DataManager = {
         return race;
     },
 
+    // Delete race
+    deleteRace(raceId) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        // Remove race from game
+        game.races = game.races.filter(r => r.id !== raceId);
+
+        // Recalculate world tour points after deleting race
+        this.saveData(data);
+        this.recalculateWorldTourPoints();
+
+        return true;
+    },
+
+    // Edit race
+    editRace(raceId, newName, newType) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return false;
+
+        race.name = newName;
+        race.type = newType;
+
+        this.saveData(data);
+
+        // If race type changed, recalculate points
+        this.recalculateWorldTourPoints();
+
+        return true;
+    },
+
     // Add stage to race
     addStage(raceId, stageName, stageNumber, stageType = 'flat', finishOnMountain = false, finishMountainCategory = null) {
         const data = this.getData();
@@ -391,6 +431,56 @@ const DataManager = {
         race.stages.push(stage);
         this.saveData(data);
         return stage;
+    },
+
+    // Delete stage
+    deleteStage(raceId, stageId) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race || race.raceFormat !== 'stage') return false;
+
+        // Remove stage from race
+        race.stages = race.stages.filter(s => s.id !== stageId);
+
+        // Recalculate classifications and world tour points after deleting stage
+        this.saveData(data);
+        this.recalculateClassifications(raceId);
+        this.recalculateWorldTourPoints();
+
+        return true;
+    },
+
+    // Edit stage
+    editStage(raceId, stageId, newName, newStageNumber, newStageType, finishOnMountain, finishMountainCategory) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race || race.raceFormat !== 'stage') return false;
+
+        const stage = race.stages.find(s => s.id === stageId);
+        if (!stage) return false;
+
+        stage.name = newName;
+        stage.stageNumber = newStageNumber;
+        stage.stageType = newStageType;
+        stage.finishOnMountain = finishOnMountain;
+        stage.finishMountainCategory = finishMountainCategory;
+
+        this.saveData(data);
+
+        // Recalculate in case stage type affects points
+        this.recalculateClassifications(raceId);
+
+        return true;
     },
 
     // Add stage result
@@ -519,6 +609,98 @@ const DataManager = {
 
         this.saveData(data);
         return race.results;
+    },
+
+    // Delete stage result (single rider)
+    deleteStageResult(raceId, stageId, riderId) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return false;
+
+        const stage = race.stages.find(s => s.id === stageId);
+        if (!stage) return false;
+
+        // Remove result for this rider
+        stage.results = stage.results.filter(r => r.riderId !== riderId);
+
+        // Recalculate classifications and world tour points
+        this.saveData(data);
+        this.recalculateClassifications(raceId);
+        this.recalculateWorldTourPoints();
+
+        return true;
+    },
+
+    // Delete one-day result (single rider)
+    deleteOneDayResult(raceId, riderId) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race || race.raceFormat !== 'one-day') return false;
+
+        // Remove result for this rider
+        race.results = race.results.filter(r => r.riderId !== riderId);
+
+        // Recalculate world tour points
+        this.saveData(data);
+        this.recalculateWorldTourPoints();
+
+        return true;
+    },
+
+    // Clear all stage results
+    clearStageResults(raceId, stageId) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return false;
+
+        const stage = race.stages.find(s => s.id === stageId);
+        if (!stage) return false;
+
+        // Clear all results
+        stage.results = [];
+
+        // Recalculate classifications and world tour points
+        this.saveData(data);
+        this.recalculateClassifications(raceId);
+        this.recalculateWorldTourPoints();
+
+        return true;
+    },
+
+    // Clear all one-day results
+    clearOneDayResults(raceId) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race || race.raceFormat !== 'one-day') return false;
+
+        // Clear all results
+        race.results = [];
+
+        // Recalculate world tour points
+        this.saveData(data);
+        this.recalculateWorldTourPoints();
+
+        return true;
     },
 
     // Add mountain to stage
@@ -997,6 +1179,33 @@ const DataManager = {
             });
         });
         return riders;
+    },
+
+    // Validate time format
+    validateTimeFormat(timeString) {
+        if (!timeString || timeString.trim() === '') {
+            return { valid: false, error: 'Tid må ikke være tom' };
+        }
+
+        const trimmed = timeString.trim();
+
+        // Accept formats: HH:MM:SS, MM:SS, or SS
+        const patterns = [
+            /^(\d{1,2}):([0-5]\d):([0-5]\d)$/,  // HH:MM:SS
+            /^([0-5]\d):([0-5]\d)$/,             // MM:SS
+            /^([0-5]?\d)$/                       // SS
+        ];
+
+        for (const pattern of patterns) {
+            if (pattern.test(trimmed)) {
+                return { valid: true, formatted: trimmed };
+            }
+        }
+
+        return {
+            valid: false,
+            error: 'Ugyldigt tidsformat. Brug HH:MM:SS, MM:SS eller SS'
+        };
     },
 
     // Export all data as JSON file

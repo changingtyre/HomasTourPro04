@@ -208,6 +208,13 @@ const UI = {
         html += '<button class="btn btn-primary" onclick="UI.showAddPlayer()">Tilføj Spiller</button>';
         html += '</div>';
 
+        // Add search box
+        html += '<div class="form-group" style="margin-bottom: 20px;">';
+        html += '<input type="text" id="search-players" placeholder="Søg efter spillere, hold eller ryttere..." oninput="UI.filterPlayers()" style="width: 100%; padding: 10px;">';
+        html += '</div>';
+
+        html += '<div id="players-list">';
+
         if (game.players.length === 0) {
             html += '<p>Ingen spillere endnu. Opret din første spiller!</p>';
             console.log('showPlayersTab: Showing "no players" message');
@@ -265,8 +272,87 @@ const UI = {
             });
         }
 
-        html += '</div>';
+        html += '</div>'; // Close players-list
+        html += '</div>'; // Close card
         container.innerHTML = html;
+    },
+
+    // Filter players by search term
+    filterPlayers() {
+        const searchTerm = document.getElementById('search-players').value.toLowerCase();
+        const playersList = document.getElementById('players-list');
+        const game = DataManager.getCurrentGame();
+
+        if (!game || !playersList) return;
+
+        let html = '';
+
+        if (game.players.length === 0) {
+            html += '<p>Ingen spillere endnu. Opret din første spiller!</p>';
+        } else {
+            game.players.forEach(player => {
+                const playerTeams = game.teams.filter(t => t.playerId === player.id);
+
+                // Check if player, team or rider matches search
+                const playerMatches = player.name.toLowerCase().includes(searchTerm);
+                const teamMatches = playerTeams.some(t => t.name.toLowerCase().includes(searchTerm));
+                const riderMatches = playerTeams.some(t =>
+                    t.riders.some(r => r.name.toLowerCase().includes(searchTerm))
+                );
+
+                if (searchTerm === '' || playerMatches || teamMatches || riderMatches) {
+                    html += '<div class="card" style="margin-bottom: 20px;">';
+                    html += `<div class="flex-between" style="align-items: center;">`;
+                    html += `<h3>${player.name}</h3>`;
+                    html += `<div>`;
+                    html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.showEditPlayer('${player.id}', '${player.name.replace(/'/g, "\\'")}')">✏️ Rediger</button>`;
+                    html += `<button class="btn btn-danger" onclick="UI.confirmDeletePlayer('${player.id}', '${player.name.replace(/'/g, "\\'")}')">🗑️ Slet</button>`;
+                    html += `</div>`;
+                    html += `</div>`;
+
+                    if (playerTeams.length === 0) {
+                        html += '<p>Ingen hold endnu.</p>';
+                        html += `<button class="btn btn-primary" onclick="UI.showAddTeam('${player.id}')">Tilføj Hold</button>`;
+                    } else {
+                        playerTeams.forEach(team => {
+                            html += `<div style="margin-top: 15px;">`;
+                            html += `<div class="flex-between">`;
+                            html += `<h4>🚴 ${team.name}</h4>`;
+                            html += `<div>`;
+                            html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.showAddRider('${team.id}')">Tilføj Rytter</button>`;
+                            html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.showEditTeam('${team.id}', '${team.name.replace(/'/g, "\\'")}')">✏️ Rediger</button>`;
+                            html += `<button class="btn btn-danger" onclick="UI.confirmDeleteTeam('${team.id}', '${team.name.replace(/'/g, "\\'")}')">🗑️ Slet</button>`;
+                            html += `</div>`;
+                            html += `</div>`;
+
+                            if (team.riders.length > 0) {
+                                html += '<table style="margin-top: 10px;">';
+                                html += '<tr><th>Rytter</th><th>World Tour Point</th><th>Sejre</th><th>Handlinger</th></tr>';
+                                team.riders.forEach(rider => {
+                                    const standing = game.riderStandings.find(r => r.riderId === rider.id) || { worldTourPoints: 0, wins: 0 };
+                                    html += '<tr>';
+                                    html += `<td>${rider.name}</td>`;
+                                    html += `<td>${standing.worldTourPoints}</td>`;
+                                    html += `<td>${standing.wins}</td>`;
+                                    html += `<td>`;
+                                    html += `<button class="btn btn-secondary" style="margin-right: 5px; font-size: 0.8em; padding: 4px 8px;" onclick="UI.showEditRider('${rider.id}', '${rider.name.replace(/'/g, "\\'")}')">✏️</button>`;
+                                    html += `<button class="btn btn-danger" style="font-size: 0.8em; padding: 4px 8px;" onclick="UI.confirmDeleteRider('${rider.id}', '${rider.name.replace(/'/g, "\\'")}')">🗑️</button>`;
+                                    html += `</td>`;
+                                    html += '</tr>';
+                                });
+                                html += '</table>';
+                            } else {
+                                html += '<p style="margin-top: 10px;">Ingen ryttere på holdet endnu.</p>';
+                            }
+                            html += `</div>`;
+                        });
+                    }
+                    html += '</div>';
+                }
+            });
+        }
+
+        playersList.innerHTML = html;
     },
 
     // Races tab
@@ -308,7 +394,11 @@ const UI = {
                 html += `<td>${race.name}</td>`;
                 html += `<td>${winner}</td>`;
                 html += `<td>${new Date(race.createdDate).toLocaleDateString('da-DK')}</td>`;
-                html += `<td><button class="btn btn-secondary" onclick="UI.viewRace('${race.id}')">Se Løb</button></td>`;
+                html += `<td>`;
+                html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.viewRace('${race.id}')">Se Løb</button>`;
+                html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.showEditRace('${race.id}')">✏️</button>`;
+                html += `<button class="btn btn-danger" onclick="UI.confirmDeleteRace('${race.id}', '${race.name.replace(/'/g, "\\'")}')">🗑️</button>`;
+                html += `</td>`;
                 html += '</tr>';
             });
             html += '</table>';
@@ -702,6 +792,66 @@ const UI = {
         }
     },
 
+    // Edit race
+    showEditRace(raceId) {
+        const race = DataManager.getRaceById(raceId);
+        if (!race) return;
+
+        this.showModal(`
+            <h2>Rediger Løb</h2>
+            <div class="form-group">
+                <label>Løbsnavn</label>
+                <input type="text" id="edit-race-name" value="${race.name}" placeholder="Løbsnavn">
+            </div>
+            <div class="form-group">
+                <label>Løbstype</label>
+                <select id="edit-race-type">
+                    <option value="tour-de-france" ${race.type === 'tour-de-france' ? 'selected' : ''}>Tour de France (800 point)</option>
+                    <option value="giro" ${race.type === 'giro' ? 'selected' : ''}>Giro d'Italia (800 point)</option>
+                    <option value="vuelta" ${race.type === 'vuelta' ? 'selected' : ''}>Vuelta a España (800 point)</option>
+                    <option value="monument" ${race.type === 'monument' ? 'selected' : ''}>Monument (300 point)</option>
+                    <option value="worldcup-major" ${race.type === 'worldcup-major' ? 'selected' : ''}>World Cup Major (200 point)</option>
+                    <option value="worldcup-other" ${race.type === 'worldcup-other' ? 'selected' : ''}>World Cup Other (75 point)</option>
+                </select>
+            </div>
+            <input type="hidden" id="edit-race-id" value="${raceId}">
+            <button class="btn btn-success" onclick="UI.saveEditRace()">Gem</button>
+            <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+        `);
+    },
+
+    saveEditRace() {
+        const raceId = document.getElementById('edit-race-id').value;
+        const newName = document.getElementById('edit-race-name').value.trim();
+        const newType = document.getElementById('edit-race-type').value;
+
+        if (!newName) {
+            alert('Indtast venligst et løbsnavn');
+            return;
+        }
+
+        if (DataManager.editRace(raceId, newName, newType)) {
+            this.closeModal();
+            setTimeout(() => {
+                this.showGameDashboard();
+                this.showTab('races');
+            }, 50);
+        } else {
+            alert('Fejl ved redigering af løb');
+        }
+    },
+
+    confirmDeleteRace(raceId, raceName) {
+        if (confirm(`Er du sikker på at du vil slette løbet "${raceName}"?\n\nDette vil slette alle resultater for dette løb.`)) {
+            if (DataManager.deleteRace(raceId)) {
+                this.showGameDashboard();
+                this.showTab('races');
+            } else {
+                alert('Fejl ved sletning af løb');
+            }
+        }
+    },
+
     // View race details
     viewRace(raceId) {
         try {
@@ -739,6 +889,9 @@ const UI = {
         html += `<p><strong>Type:</strong> ${PointsCalculator.getRaceTypeName(race.type)}</p>`;
         html += `<p><strong>Format:</strong> Endagsløb</p>`;
         html += `<button class="btn btn-primary mt-20" onclick="UI.showAddOneDayResult('${race.id}')">Registrer Resultat</button>`;
+        if (race.results.length > 0) {
+            html += ` <button class="btn btn-danger mt-20" onclick="UI.confirmClearOneDayResults('${race.id}', '${race.name.replace(/'/g, "\\'")}')">Ryd Alle Resultater</button>`;
+        }
         html += '</div>';
 
         // Results
@@ -863,6 +1016,11 @@ const UI = {
                 html += `<button class="btn btn-secondary" onclick="UI.showAddMountain('${race.id}', '${stage.id}')">➕ Bjerg</button>`;
                 html += `<button class="btn btn-secondary" onclick="UI.showAddSprint('${race.id}', '${stage.id}')">➕ Spurt</button>`;
                 html += `<button class="btn btn-primary" onclick="UI.showAddStageResult('${race.id}', '${stage.id}')">Registrer Resultat</button>`;
+                if (stage.results && stage.results.length > 0) {
+                    html += `<button class="btn btn-danger" onclick="UI.confirmClearStageResults('${race.id}', '${stage.id}', '${stage.name.replace(/'/g, "\\'")}')">Ryd Resultater</button>`;
+                }
+                html += `<button class="btn btn-secondary" onclick="UI.showEditStage('${race.id}', '${stage.id}')">✏️</button>`;
+                html += `<button class="btn btn-danger" onclick="UI.confirmDeleteStage('${race.id}', '${stage.id}', '${stage.name.replace(/'/g, "\\'")}')">🗑️</button>`;
                 html += `</div>`;
                 html += `</div>`;
 
@@ -1115,6 +1273,90 @@ const UI = {
         this.viewRace(raceId);
     },
 
+    // Edit stage
+    showEditStage(raceId, stageId) {
+        const race = DataManager.getRaceById(raceId);
+        if (!race) return;
+
+        const stage = race.stages.find(s => s.id === stageId);
+        if (!stage) return;
+
+        this.showModal(`
+            <h2>Rediger Etape</h2>
+            <div class="form-group">
+                <label>Etapenavn</label>
+                <input type="text" id="edit-stage-name" value="${stage.name}" placeholder="f.eks. Etape 1">
+            </div>
+            <div class="form-group">
+                <label>Etapenummer</label>
+                <input type="number" id="edit-stage-number" value="${stage.stageNumber}" min="1">
+            </div>
+            <div class="form-group">
+                <label>Etapetype</label>
+                <select id="edit-stage-type">
+                    <option value="flat" ${stage.stageType === 'flat' ? 'selected' : ''}>Flad</option>
+                    <option value="hilly" ${stage.stageType === 'hilly' ? 'selected' : ''}>Bakket</option>
+                    <option value="mountain" ${stage.stageType === 'mountain' ? 'selected' : ''}>Bjerg</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="edit-finish-on-mountain" ${stage.finishOnMountain ? 'checked' : ''}
+                           onchange="document.getElementById('edit-finish-mountain-category-group').style.display = this.checked ? 'block' : 'none'">
+                    Slutter på bjerg
+                </label>
+            </div>
+            <div class="form-group" id="edit-finish-mountain-category-group" style="display: ${stage.finishOnMountain ? 'block' : 'none'}">
+                <label>Bjergkategori ved målgang</label>
+                <select id="edit-finish-mountain-category">
+                    <option value="cat4" ${stage.finishMountainCategory === 'cat4' ? 'selected' : ''}>Cat 4</option>
+                    <option value="cat3" ${stage.finishMountainCategory === 'cat3' ? 'selected' : ''}>Cat 3</option>
+                    <option value="cat2" ${stage.finishMountainCategory === 'cat2' ? 'selected' : ''}>Cat 2</option>
+                    <option value="cat1" ${stage.finishMountainCategory === 'cat1' ? 'selected' : ''}>Cat 1</option>
+                    <option value="hc" ${stage.finishMountainCategory === 'hc' ? 'selected' : ''}>HC</option>
+                </select>
+            </div>
+            <input type="hidden" id="edit-stage-race-id" value="${raceId}">
+            <input type="hidden" id="edit-stage-id" value="${stageId}">
+            <button class="btn btn-success" onclick="UI.saveEditStage()">Gem</button>
+            <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+        `);
+    },
+
+    saveEditStage() {
+        const raceId = document.getElementById('edit-stage-race-id').value;
+        const stageId = document.getElementById('edit-stage-id').value;
+        const name = document.getElementById('edit-stage-name').value.trim();
+        const number = parseInt(document.getElementById('edit-stage-number').value);
+        const stageType = document.getElementById('edit-stage-type').value;
+        const finishOnMountain = document.getElementById('edit-finish-on-mountain').checked;
+        const finishMountainCategory = finishOnMountain ? document.getElementById('edit-finish-mountain-category').value : null;
+
+        if (!name) {
+            alert('Indtast venligst et etapenavn');
+            return;
+        }
+
+        if (DataManager.editStage(raceId, stageId, name, number, stageType, finishOnMountain, finishMountainCategory)) {
+            this.closeModal();
+            setTimeout(() => {
+                this.viewRace(raceId);
+            }, 50);
+        } else {
+            alert('Fejl ved redigering af etape');
+        }
+    },
+
+    confirmDeleteStage(raceId, stageId, stageName) {
+        if (confirm(`Er du sikker på at du vil slette etapen "${stageName}"?\n\nDette vil slette alle resultater for denne etape.`)) {
+            if (DataManager.deleteStage(raceId, stageId)) {
+                this.viewRace(raceId);
+            } else {
+                alert('Fejl ved sletning af etape');
+            }
+        }
+    },
+
     // Show add one-day result form (batch mode)
     showAddOneDayResult(raceId) {
         const riders = DataManager.getAllRiders();
@@ -1190,8 +1432,10 @@ const UI = {
 
     // Save batch one-day results
     saveBatchOneDayResults(raceId) {
+        const race = DataManager.getRaceById(raceId);
         const riders = DataManager.getAllRiders();
         const results = [];
+        const errors = [];
 
         // Loop through positions instead of riders
         for (let position = 1; position <= riders.length; position++) {
@@ -1203,17 +1447,35 @@ const UI = {
 
             // Only add if both rider and time are provided
             if (riderId && time) {
-                results.push({
-                    riderId: riderId,
-                    time: time,
-                    position: position
-                });
+                // Validate time format
+                const validation = DataManager.validateTimeFormat(time);
+                if (!validation.valid) {
+                    errors.push(`Position ${position}: ${validation.error}`);
+                } else {
+                    results.push({
+                        riderId: riderId,
+                        time: validation.formatted,
+                        position: position
+                    });
+                }
             }
+        }
+
+        if (errors.length > 0) {
+            alert('Fejl i tidsformater:\n\n' + errors.join('\n'));
+            return;
         }
 
         if (results.length === 0) {
             alert('Indtast venligst mindst ét resultat');
             return;
+        }
+
+        // Warn if overwriting existing results
+        if (race.results.length > 0) {
+            if (!confirm(`Dette vil overskrive ${race.results.length} eksisterende resultat(er).\n\nEr du sikker?`)) {
+                return;
+            }
         }
 
         DataManager.addBatchOneDayResults(raceId, results);
@@ -1303,8 +1565,11 @@ const UI = {
 
     // Save batch stage results
     saveBatchStageResults(raceId, stageId) {
+        const race = DataManager.getRaceById(raceId);
+        const stage = race.stages.find(s => s.id === stageId);
         const riders = DataManager.getAllRiders();
         const results = [];
+        const errors = [];
 
         // Loop through positions instead of riders
         for (let position = 1; position <= riders.length; position++) {
@@ -1316,12 +1581,23 @@ const UI = {
 
             // Only add if both rider and time are provided
             if (riderId && time) {
-                results.push({
-                    riderId: riderId,
-                    time: time,
-                    position: position
-                });
+                // Validate time format
+                const validation = DataManager.validateTimeFormat(time);
+                if (!validation.valid) {
+                    errors.push(`Position ${position}: ${validation.error}`);
+                } else {
+                    results.push({
+                        riderId: riderId,
+                        time: validation.formatted,
+                        position: position
+                    });
+                }
             }
+        }
+
+        if (errors.length > 0) {
+            alert('Fejl i tidsformater:\n\n' + errors.join('\n'));
+            return;
         }
 
         if (results.length === 0) {
@@ -1329,9 +1605,38 @@ const UI = {
             return;
         }
 
+        // Warn if overwriting existing results
+        if (stage.results.length > 0) {
+            if (!confirm(`Dette vil overskrive ${stage.results.length} eksisterende resultat(er).\n\nEr du sikker?`)) {
+                return;
+            }
+        }
+
         DataManager.addBatchStageResults(raceId, stageId, results);
         this.closeModal();
         this.viewRace(raceId);
+    },
+
+    // Confirm clear one-day results
+    confirmClearOneDayResults(raceId, raceName) {
+        if (confirm(`Er du sikker på at du vil rydde ALLE resultater for "${raceName}"?\n\nDette kan ikke fortrydes.`)) {
+            if (DataManager.clearOneDayResults(raceId)) {
+                this.viewRace(raceId);
+            } else {
+                alert('Fejl ved rydning af resultater');
+            }
+        }
+    },
+
+    // Confirm clear stage results
+    confirmClearStageResults(raceId, stageId, stageName) {
+        if (confirm(`Er du sikker på at du vil rydde ALLE resultater for "${stageName}"?\n\nDette kan ikke fortrydes.`)) {
+            if (DataManager.clearStageResults(raceId, stageId)) {
+                this.viewRace(raceId);
+            } else {
+                alert('Fejl ved rydning af resultater');
+            }
+        }
     },
 
     // Show add mountain form
