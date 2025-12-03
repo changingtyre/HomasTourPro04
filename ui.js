@@ -385,9 +385,16 @@ const UI = {
         if (game.races.length === 0) {
             html += '<p>Ingen løb endnu. Opret dit første løb!</p>';
         } else {
+            // Sort races by date (newest first)
+            const sortedRaces = [...game.races].sort((a, b) => {
+                const dateA = a.date || a.createdDate;
+                const dateB = b.date || b.createdDate;
+                return new Date(dateB) - new Date(dateA);
+            });
+
             html += '<table>';
             html += '<tr><th>Løb</th><th>Vinder</th><th>Dato</th><th>Handling</th></tr>';
-            game.races.forEach(race => {
+            sortedRaces.forEach(race => {
                 // Determine winner
                 let winner = '-';
                 if (race.raceFormat === 'one-day') {
@@ -407,10 +414,13 @@ const UI = {
                     }
                 }
 
+                // Use race.date if available, otherwise createdDate
+                const displayDate = race.date ? new Date(race.date).toLocaleDateString('da-DK') : new Date(race.createdDate).toLocaleDateString('da-DK');
+
                 html += '<tr>';
                 html += `<td>${race.name}</td>`;
                 html += `<td>${winner}</td>`;
-                html += `<td>${new Date(race.createdDate).toLocaleDateString('da-DK')}</td>`;
+                html += `<td>${displayDate}</td>`;
                 html += `<td>`;
                 html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.viewRace('${race.id}')">Se Løb</button>`;
                 html += `<button class="btn btn-secondary" style="margin-right: 5px;" onclick="UI.showEditRace('${race.id}')">✏️</button>`;
@@ -435,14 +445,52 @@ const UI = {
         html += '<button class="btn btn-success" onclick="UI.exportRiderStandingsCSV()">📥 Eksporter CSV</button>';
         html += '</div>';
 
+        // Filters
+        html += '<div style="display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap; align-items: center;">';
+        html += '<div>';
+        html += '<label style="margin-right: 8px;">Filtrer efter hold:</label>';
+        html += '<select id="filter-team" onchange="UI.showGameDashboard(); UI.showTab(\'standings\');" style="padding: 5px;">';
+        html += '<option value="">Alle hold</option>';
+        game.teams.forEach(team => {
+            html += `<option value="${team.id}">${team.name}</option>`;
+        });
+        html += '</select>';
+        html += '</div>';
+        html += '<div>';
+        html += '<label style="margin-right: 8px; cursor: pointer;"><input type="checkbox" id="filter-active" onchange="UI.showGameDashboard(); UI.showTab(\'standings\');"> Kun aktive ryttere (med point)</label>';
+        html += '</div>';
+        html += '</div>';
+
         if (game.riderStandings.length === 0) {
             html += '<p>Ingen data endnu.</p>';
         } else {
+            // Apply filters
+            const filterTeamId = document.getElementById('filter-team')?.value || '';
+            const filterActive = document.getElementById('filter-active')?.checked || false;
+
+            let filteredRiders = game.riderStandings;
+
+            // Filter by team
+            if (filterTeamId) {
+                filteredRiders = filteredRiders.filter(standing => {
+                    const rider = DataManager.getRiderById(standing.riderId);
+                    return rider && rider.teamId === filterTeamId;
+                });
+            }
+
+            // Filter active only
+            if (filterActive) {
+                filteredRiders = filteredRiders.filter(standing => standing.worldTourPoints > 0);
+            }
+
+            if (filteredRiders.length === 0) {
+                html += '<p style="margin-top: 15px;">Ingen ryttere matcher filtret.</p>';
+            } else {
             // Sort riders based on current sort state
             const sortCol = this.sortState.riderStandings.column;
             const sortDir = this.sortState.riderStandings.direction;
 
-            const sortedRiders = [...game.riderStandings].sort((a, b) => {
+            const sortedRiders = [...filteredRiders].sort((a, b) => {
                 const riderA = DataManager.getRiderById(a.riderId);
                 const riderB = DataManager.getRiderById(b.riderId);
 
@@ -497,6 +545,7 @@ const UI = {
                 html += '</tr>';
             });
             html += '</table>';
+            }
         }
         html += '</div>';
 
@@ -799,6 +848,68 @@ const UI = {
                 html += '</tr>';
             });
 
+            html += '</table>';
+        }
+        html += '</div>';
+
+        // Stage wins overview
+        html += '<div class="card">';
+        html += '<h3>🏆 Etapevindere Oversigt</h3>';
+
+        // Calculate stage wins per rider
+        const stageWins = new Map();
+        game.races.forEach(race => {
+            if (race.raceFormat === 'stage' && race.stages) {
+                race.stages.forEach(stage => {
+                    if (stage.results && stage.results.length > 0) {
+                        const winner = stage.results.find(r => r.position === 1);
+                        if (winner) {
+                            if (!stageWins.has(winner.riderId)) {
+                                stageWins.set(winner.riderId, []);
+                            }
+                            stageWins.get(winner.riderId).push({
+                                raceName: race.name,
+                                stageName: stage.name,
+                                stageNumber: stage.stageNumber
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
+        if (stageWins.size === 0) {
+            html += '<p>Ingen etapesejre endnu.</p>';
+        } else {
+            // Sort by number of wins
+            const sortedWins = Array.from(stageWins.entries())
+                .map(([riderId, wins]) => {
+                    const rider = DataManager.getRiderById(riderId);
+                    const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                    return {
+                        riderId,
+                        riderName: rider ? rider.name : 'Ukendt',
+                        teamName: team ? team.name : 'Ukendt',
+                        teamColor: team && team.color ? team.color : '#95a5a6',
+                        wins: wins
+                    };
+                })
+                .sort((a, b) => b.wins.length - a.wins.length);
+
+            html += '<table>';
+            html += '<tr><th>Rytter</th><th>Hold</th><th>Antal Sejre</th><th>Etaper</th></tr>';
+            sortedWins.forEach(riderWins => {
+                html += '<tr>';
+                html += `<td><strong>${riderWins.riderName}</strong></td>`;
+                html += `<td><span style="display: inline-block; width: 12px; height: 12px; background: ${riderWins.teamColor}; border-radius: 50%; margin-right: 8px; vertical-align: middle;"></span>${riderWins.teamName}</td>`;
+                html += `<td><strong>${riderWins.wins.length}</strong></td>`;
+                html += '<td><ul style="margin: 0; padding-left: 20px;">';
+                riderWins.wins.forEach(win => {
+                    html += `<li style="font-size: 0.9em;">${win.raceName} - Etape ${win.stageNumber}: ${win.stageName}</li>`;
+                });
+                html += '</ul></td>';
+                html += '</tr>';
+            });
             html += '</table>';
         }
         html += '</div>';
@@ -1161,6 +1272,11 @@ const UI = {
                 <input type="text" id="race-name" placeholder="f.eks. Tour de France 2024">
             </div>
             <div class="form-group">
+                <label>Dato (valgfrit)</label>
+                <input type="date" id="race-date">
+                <small style="color: #7f8c8d; display: block; margin-top: 5px;">Dette er løbets oprindelige dato, ikke spilledatoen</small>
+            </div>
+            <div class="form-group">
                 <label>Løbstype</label>
                 <select id="race-type">
                     <option value="tour-de-france">Tour de France</option>
@@ -1186,6 +1302,7 @@ const UI = {
     createRace() {
         try {
             const name = document.getElementById('race-name').value.trim();
+            const date = document.getElementById('race-date').value;
             const type = document.getElementById('race-type').value;
             const format = document.getElementById('race-format').value;
 
@@ -1194,7 +1311,7 @@ const UI = {
                 return;
             }
 
-            const race = DataManager.createRace(name, type, format);
+            const race = DataManager.createRace(name, type, format, date);
             this.closeModal();
 
             // Small delay to ensure modal is fully closed before navigating
@@ -1267,6 +1384,34 @@ const UI = {
         }
     },
 
+    // Show edit race notes
+    showEditRaceNotes(raceId) {
+        const race = DataManager.getRaceById(raceId);
+        if (!race) return;
+
+        this.showModal(`
+            <h2>Rediger Noter - ${race.name}</h2>
+            <div class="form-group">
+                <label>Noter (valgfrit)</label>
+                <textarea id="race-notes" rows="6" style="width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 4px;">${race.notes || ''}</textarea>
+                <small style="color: #7f8c8d; display: block; margin-top: 5px;">Tilføj noter om vejr, særlige hændelser, strategi osv.</small>
+            </div>
+            <button class="btn btn-success" onclick="UI.saveRaceNotes('${raceId}')">Gem</button>
+            <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+        `);
+    },
+
+    // Save race notes
+    saveRaceNotes(raceId) {
+        const notes = document.getElementById('race-notes').value.trim();
+        if (DataManager.updateRaceNotes(raceId, notes)) {
+            this.closeModal();
+            this.viewRace(raceId);
+        } else {
+            alert('Fejl ved gem af noter');
+        }
+    },
+
     // View race details
     viewRace(raceId) {
         try {
@@ -1303,10 +1448,21 @@ const UI = {
         html += `<h2>${race.name}</h2>`;
         html += `<p><strong>Type:</strong> ${PointsCalculator.getRaceTypeName(race.type)}</p>`;
         html += `<p><strong>Format:</strong> Endagsløb</p>`;
-        html += `<button class="btn btn-primary mt-20" onclick="UI.showAddOneDayResult('${race.id}')">Registrer Resultat</button>`;
-        if (race.results.length > 0) {
-            html += ` <button class="btn btn-danger mt-20" onclick="UI.confirmClearOneDayResults('${race.id}', '${race.name.replace(/'/g, "\\'")}')">Ryd Alle Resultater</button>`;
+        if (race.date) {
+            html += `<p><strong>Dato:</strong> ${new Date(race.date).toLocaleDateString('da-DK')}</p>`;
         }
+        if (race.notes) {
+            html += `<div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px;">`;
+            html += `<p style="margin: 0; white-space: pre-wrap;"><strong>📝 Noter:</strong><br>${race.notes}</p>`;
+            html += `</div>`;
+        }
+        html += `<div class="flex gap-10 mt-20" style="flex-wrap: wrap;">`;
+        html += `<button class="btn btn-primary" onclick="UI.showAddOneDayResult('${race.id}')">Registrer Resultat</button>`;
+        html += `<button class="btn btn-secondary" onclick="UI.showEditRaceNotes('${race.id}')">📝 ${race.notes ? 'Rediger' : 'Tilføj'} Noter</button>`;
+        if (race.results.length > 0) {
+            html += `<button class="btn btn-danger" onclick="UI.confirmClearOneDayResults('${race.id}', '${race.name.replace(/'/g, "\\'")}')">Ryd Alle Resultater</button>`;
+        }
+        html += '</div>';
         html += '</div>';
 
         // Results
@@ -1344,9 +1500,18 @@ const UI = {
         html += `<h2>${race.name}</h2>`;
         html += `<p><strong>Type:</strong> ${PointsCalculator.getRaceTypeName(race.type)}</p>`;
         html += `<p><strong>Format:</strong> Etapeløb</p>`;
+        if (race.date) {
+            html += `<p><strong>Dato:</strong> ${new Date(race.date).toLocaleDateString('da-DK')}</p>`;
+        }
+        if (race.notes) {
+            html += `<div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px;">`;
+            html += `<p style="margin: 0; white-space: pre-wrap;"><strong>📝 Noter:</strong><br>${race.notes}</p>`;
+            html += `</div>`;
+        }
         html += '<div class="flex gap-10 mt-20" style="flex-wrap: wrap;">';
         html += `<button class="btn btn-primary" onclick="UI.showAddStage('${race.id}')">Tilføj Etape</button>`;
         html += `<button class="btn btn-secondary" onclick="UI.showYellowJerseyBonus('${race.id}')">Førertrøje Bonus</button>`;
+        html += `<button class="btn btn-secondary" onclick="UI.showEditRaceNotes('${race.id}')">📝 ${race.notes ? 'Rediger' : 'Tilføj'} Noter</button>`;
         html += '</div>';
         html += '</div>';
 
@@ -2772,10 +2937,111 @@ const UI = {
     updateGameInfo() {
         const game = DataManager.getCurrentGame();
         if (game) {
-            this.currentGameInfo.innerHTML = `Nuværende Spil: <strong>${game.name}</strong> | <a href="#" onclick="UI.showHome(); return false;" style="color: white;">Skift Spil</a>`;
+            this.currentGameInfo.innerHTML = `Nuværende Spil: <strong>${game.name}</strong> | <a href="#" onclick="UI.showHome(); return false;" style="color: white;">Skift Spil</a> | <a href="#" onclick="UI.showSearch(); return false;" style="color: white;">🔍 Søg</a>`;
         } else {
             this.currentGameInfo.innerHTML = '';
         }
+    },
+
+    // Show search dialog
+    showSearch() {
+        this.showModal(`
+            <h2>🔍 Søg</h2>
+            <div class="form-group">
+                <input type="text" id="search-input" placeholder="Søg efter rytter, hold eller løb..." style="width: 100%; padding: 10px; font-size: 1em;" oninput="UI.performSearch()">
+            </div>
+            <div id="search-results" style="max-height: 400px; overflow-y: auto;"></div>
+        `);
+        // Focus on search input
+        setTimeout(() => {
+            document.getElementById('search-input')?.focus();
+        }, 100);
+    },
+
+    // Perform search
+    performSearch() {
+        const query = document.getElementById('search-input')?.value.trim().toLowerCase();
+        const resultsDiv = document.getElementById('search-results');
+
+        if (!query || query.length < 2) {
+            resultsDiv.innerHTML = '<p style="color: #7f8c8d;">Indtast mindst 2 tegn for at søge...</p>';
+            return;
+        }
+
+        const game = DataManager.getCurrentGame();
+        let html = '';
+        let foundResults = false;
+
+        // Search riders
+        const matchingRiders = [];
+        game.teams.forEach(team => {
+            if (team.riders) {
+                team.riders.forEach(rider => {
+                    if (rider.name.toLowerCase().includes(query)) {
+                        matchingRiders.push({
+                            rider: rider,
+                            team: team,
+                            standing: game.riderStandings.find(rs => rs.riderId === rider.id)
+                        });
+                    }
+                });
+            }
+        });
+
+        if (matchingRiders.length > 0) {
+            foundResults = true;
+            html += '<h3>Ryttere</h3>';
+            html += '<ul style="list-style: none; padding: 0;">';
+            matchingRiders.forEach(match => {
+                const points = match.standing ? match.standing.worldTourPoints : 0;
+                const wins = match.standing ? match.standing.wins : 0;
+                html += `<li style="padding: 10px; border-bottom: 1px solid #ecf0f1; cursor: pointer;" onclick="UI.closeModal(); UI.showGameDashboard(); UI.showTab('standings');">`;
+                html += `<strong>${match.rider.name}</strong> - ${match.team.name}<br>`;
+                html += `<small style="color: #7f8c8d;">Point: ${points} | Sejre: ${wins}</small>`;
+                html += `</li>`;
+            });
+            html += '</ul>';
+        }
+
+        // Search teams
+        const matchingTeams = game.teams.filter(team => team.name.toLowerCase().includes(query));
+        if (matchingTeams.length > 0) {
+            foundResults = true;
+            html += '<h3>Hold</h3>';
+            html += '<ul style="list-style: none; padding: 0;">';
+            matchingTeams.forEach(team => {
+                const player = DataManager.getPlayerById(team.playerId);
+                const standing = game.teamStandings.find(ts => ts.teamId === team.id);
+                const points = standing ? standing.worldTourPoints : 0;
+                html += `<li style="padding: 10px; border-bottom: 1px solid #ecf0f1; cursor: pointer;" onclick="UI.closeModal(); UI.showGameDashboard(); UI.showTab('players');">`;
+                html += `<strong>${team.name}</strong> - ${player ? player.name : 'Ukendt'}<br>`;
+                html += `<small style="color: #7f8c8d;">Point: ${points} | Ryttere: ${team.riders.length}</small>`;
+                html += `</li>`;
+            });
+            html += '</ul>';
+        }
+
+        // Search races
+        const matchingRaces = game.races.filter(race => race.name.toLowerCase().includes(query));
+        if (matchingRaces.length > 0) {
+            foundResults = true;
+            html += '<h3>Løb</h3>';
+            html += '<ul style="list-style: none; padding: 0;">';
+            matchingRaces.forEach(race => {
+                const date = race.date ? new Date(race.date).toLocaleDateString('da-DK') : '';
+                html += `<li style="padding: 10px; border-bottom: 1px solid #ecf0f1; cursor: pointer;" onclick="UI.closeModal(); UI.viewRace('${race.id}');">`;
+                html += `<strong>${race.name}</strong><br>`;
+                html += `<small style="color: #7f8c8d;">${PointsCalculator.getRaceTypeName(race.type)}${date ? ' - ' + date : ''}</small>`;
+                html += `</li>`;
+            });
+            html += '</ul>';
+        }
+
+        if (!foundResults) {
+            html = '<p style="color: #e74c3c;">Ingen resultater fundet.</p>';
+        }
+
+        resultsDiv.innerHTML = html;
     },
 
     // Export data (download backup)

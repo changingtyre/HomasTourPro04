@@ -322,8 +322,8 @@ const DataManager = {
     },
 
     // Create race
-    createRace(raceName, raceType, raceFormat) {
-        console.log('DataManager.createRace called with:', raceName, raceType, raceFormat);
+    createRace(raceName, raceType, raceFormat, raceDate = null) {
+        console.log('DataManager.createRace called with:', raceName, raceType, raceFormat, raceDate);
         const data = this.getData();
         console.log('Current data:', data);
 
@@ -346,6 +346,7 @@ const DataManager = {
             name: raceName,
             type: raceType, // 'tour-de-france', 'giro', 'vuelta', 'monument', 'worldcup-major', 'worldcup-other'
             raceFormat: raceFormat, // 'one-day' or 'stage'
+            date: raceDate || null, // Original race date (optional)
             createdDate: new Date().toISOString(),
             stages: raceFormat === 'stage' ? [] : null,
             results: raceFormat === 'one-day' ? [] : null,
@@ -404,6 +405,23 @@ const DataManager = {
         // If race type changed, recalculate points
         this.recalculateWorldTourPoints();
 
+        return true;
+    },
+
+    // Update race notes
+    updateRaceNotes(raceId, notes) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return false;
+
+        race.notes = notes || null;
+
+        this.saveData(data);
         return true;
     },
 
