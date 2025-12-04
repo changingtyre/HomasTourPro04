@@ -934,6 +934,12 @@ const DataManager = {
         console.log('Mountain classification:', race.mountainClassification.length, 'riders');
 
         // Calculate team classification (sum of times for first 3 riders from each team on each stage)
+        console.log('=== TEAM CLASSIFICATION DEBUG ===');
+        console.log('Total teams in game:', game.teams.length);
+        game.teams.forEach(team => {
+            console.log(`  Team: ${team.name} (ID: ${team.id}), Riders: ${team.riders.length}`);
+        });
+
         const teamTimeMap = new Map();
 
         // Get all teams in the game
@@ -941,8 +947,9 @@ const DataManager = {
             teamTimeMap.set(team.id, 0);
         });
 
-        race.stages.forEach(stage => {
+        race.stages.forEach((stage, stageIndex) => {
             if (stage.results && stage.results.length > 0) {
+                console.log(`Stage ${stageIndex + 1}: ${stage.name || 'Unnamed'}`);
                 // Group riders by team for this stage
                 const teamRidersMap = new Map();
 
@@ -971,6 +978,7 @@ const DataManager = {
 
                 // For each team, sum the times of the first 3 riders
                 teamRidersMap.forEach((riders, teamId) => {
+                    const team = game.teams.find(t => t.id === teamId);
                     // Sort by position (lower is better)
                     riders.sort((a, b) => a.position - b.position);
 
@@ -980,11 +988,19 @@ const DataManager = {
                     // Sum their times
                     const stageTeamTime = top3Riders.reduce((sum, rider) => sum + rider.time, 0);
 
+                    console.log(`  ${team ? team.name : 'Unknown'}: ${riders.length} riders, top 3 time: ${this.formatTime(stageTeamTime)}`);
+
                     // Add to total team time
                     const currentTotalTime = teamTimeMap.get(teamId) || 0;
                     teamTimeMap.set(teamId, currentTotalTime + stageTeamTime);
                 });
             }
+        });
+
+        console.log('Final team times BEFORE filtering:');
+        Array.from(teamTimeMap.entries()).forEach(([teamId, totalTime]) => {
+            const team = game.teams.find(t => t.id === teamId);
+            console.log(`  ${team ? team.name : 'Unknown'} (${teamId}): ${this.formatTime(totalTime)} (${totalTime})`);
         });
 
         race.teamClassification = Array.from(teamTimeMap.entries())
@@ -993,10 +1009,12 @@ const DataManager = {
             .sort((a, b) => a.totalTime - b.totalTime)
             .map((item, index) => ({ ...item, position: index + 1 }));
 
-        console.log('Team classification:', race.teamClassification.length, 'teams');
+        console.log('Final team classification AFTER filtering and sorting:', race.teamClassification.length, 'teams');
         if (race.teamClassification.length > 0) {
-            console.log('Winner:', race.teamClassification[0]);
-            console.log('All positions:', race.teamClassification.map(tc => ({ pos: tc.position, teamId: tc.teamId, time: this.formatTime(tc.totalTime) })));
+            race.teamClassification.forEach(tc => {
+                const team = game.teams.find(t => t.id === tc.teamId);
+                console.log(`  Pos ${tc.position}: ${team ? team.name : 'Unknown'} - ${this.formatTime(tc.totalTime)}`);
+            });
         }
 
         // Recalculate world tour points
