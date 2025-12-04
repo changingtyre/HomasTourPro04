@@ -467,8 +467,10 @@ const DataManager = {
         // Remove stage from race
         race.stages = race.stages.filter(s => s.id !== stageId);
 
-        // Recalculate classifications and world tour points after deleting stage
+        // Save the deletion first
         this.saveData(data);
+
+        // Recalculate classifications and world tour points after deleting stage
         this.recalculateClassifications(raceId);
         this.recalculateWorldTourPoints();
 
@@ -529,10 +531,12 @@ const DataManager = {
         };
         stage.results.push(result);
 
-        // Recalculate classifications
+        // Save the stage result first
+        this.saveData(data);
+
+        // Recalculate classifications (this will save again with updated classifications)
         this.recalculateClassifications(raceId);
 
-        this.saveData(data);
         return result;
     },
 
@@ -564,10 +568,12 @@ const DataManager = {
             }
         });
 
-        // Recalculate classifications
+        // Save the stage results first
+        this.saveData(data);
+
+        // Recalculate classifications (this will save again with updated classifications)
         this.recalculateClassifications(raceId);
 
-        this.saveData(data);
         return stage.results;
     },
 
@@ -648,8 +654,10 @@ const DataManager = {
         // Remove result for this rider
         stage.results = stage.results.filter(r => r.riderId !== riderId);
 
-        // Recalculate classifications and world tour points
+        // Save the deletion first
         this.saveData(data);
+
+        // Recalculate classifications and world tour points
         this.recalculateClassifications(raceId);
         this.recalculateWorldTourPoints();
 
