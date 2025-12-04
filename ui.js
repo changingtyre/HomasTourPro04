@@ -1972,7 +1972,7 @@ const UI = {
                 <tr id="result-row-${position}">
                     <td style="text-align: center; font-weight: bold;">${position}.</td>
                     <td>
-                        <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                        <select id="rider-${position}" style="width: 100%; padding: 5px;" onchange="UI.updateRiderDropdowns()">
                             ${riderOptions}
                         </select>
                         ${existingResult ? `<script>document.getElementById('rider-${position}').value = '${existingResult.riderId}';</script>` : ''}
@@ -2028,6 +2028,45 @@ const UI = {
                     if (select) select.value = existingResult.riderId;
                 }
             }
+            // Update dropdowns to disable already selected riders
+            UI.updateRiderDropdowns();
+        });
+    },
+
+    // Update rider dropdowns to prevent duplicate selections
+    updateRiderDropdowns() {
+        // Get all rider dropdowns
+        const allSelects = document.querySelectorAll('select[id^="rider-"]');
+
+        // Collect all currently selected rider IDs
+        const selectedRiders = new Set();
+        allSelects.forEach(select => {
+            if (select.value) {
+                selectedRiders.add(select.value);
+            }
+        });
+
+        // Update each dropdown
+        allSelects.forEach(select => {
+            const currentValue = select.value;
+            const options = select.querySelectorAll('option');
+
+            options.forEach(option => {
+                // Skip the empty/placeholder option
+                if (!option.value) {
+                    option.disabled = false;
+                    return;
+                }
+
+                // Disable if rider is selected elsewhere (but not in this dropdown)
+                if (selectedRiders.has(option.value) && option.value !== currentValue) {
+                    option.disabled = true;
+                    option.style.color = '#ccc';
+                } else {
+                    option.disabled = false;
+                    option.style.color = '';
+                }
+            });
         });
     },
 
@@ -2051,7 +2090,7 @@ const UI = {
             row.innerHTML = `
                 <td style="text-align: center; font-weight: bold;">${position}.</td>
                 <td>
-                    <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                    <select id="rider-${position}" style="width: 100%; padding: 5px;" onchange="UI.updateRiderDropdowns()">
                         ${riderOptions}
                     </select>
                 </td>
@@ -2071,6 +2110,9 @@ const UI = {
             `;
             tbody.appendChild(row);
         }
+
+        // Update dropdowns to reflect already selected riders
+        UI.updateRiderDropdowns();
 
         // Update button to add more from new position
         const button = event.target;
@@ -2100,7 +2142,7 @@ const UI = {
             row.innerHTML = `
                 <td style="text-align: center; font-weight: bold;">${position}.</td>
                 <td>
-                    <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                    <select id="rider-${position}" style="width: 100%; padding: 5px;" onchange="UI.updateRiderDropdowns()">
                         ${riderOptions}
                     </select>
                 </td>
@@ -2114,6 +2156,9 @@ const UI = {
             `;
             tbody.appendChild(row);
         }
+
+        // Update dropdowns to reflect already selected riders
+        UI.updateRiderDropdowns();
 
         // Update button to add more from new position
         const button = event.target;
@@ -2224,7 +2269,7 @@ const UI = {
                 <tr id="stage-result-row-${position}">
                     <td style="text-align: center; font-weight: bold;">${position}.</td>
                     <td>
-                        <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                        <select id="rider-${position}" style="width: 100%; padding: 5px;" onchange="UI.updateRiderDropdowns()">
                             ${riderOptions}
                         </select>
                     </td>
@@ -2282,6 +2327,8 @@ const UI = {
                     if (select) select.value = existingResult.riderId;
                 }
             }
+            // Update dropdowns to disable already selected riders
+            UI.updateRiderDropdowns();
         });
     },
 
