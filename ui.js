@@ -678,7 +678,7 @@ const UI = {
                 let podiums = 0; // Top 3 finishes
 
                 game.races.forEach(race => {
-                    if (race.type === 'one-day') {
+                    if (race.raceFormat === 'one-day') {
                         const result = race.results.find(r => r.riderId === standing.riderId);
                         if (result) {
                             racesParticipated++;
@@ -686,7 +686,7 @@ const UI = {
                             if (result.position < bestPosition) bestPosition = result.position;
                             if (result.position <= 3) podiums++;
                         }
-                    } else if (race.type === 'stage') {
+                    } else if (race.raceFormat === 'stage') {
                         // Check if rider participated in any stage
                         let participatedInRace = false;
                         race.stages.forEach(stage => {
@@ -2748,7 +2748,7 @@ const UI = {
 
         let csv = '';
 
-        if (race.type === 'one-day') {
+        if (race.raceFormat === 'one-day') {
             // One-day race export
             csv = 'Position,Rytter,Hold,Tid,Point\n';
 
@@ -2760,7 +2760,7 @@ const UI = {
 
                 csv += `${result.position},"${riderName}","${teamName}","${result.time}",${result.points}\n`;
             });
-        } else if (race.type === 'stage') {
+        } else if (race.raceFormat === 'stage') {
             // Stage race export - include GC
             csv = 'Type,Stage,Position,Rytter,Hold,Tid,Point\n';
 
@@ -2814,7 +2814,7 @@ const UI = {
             let podiums = 0;
 
             game.races.forEach(race => {
-                if (race.type === 'one-day') {
+                if (race.raceFormat === 'one-day') {
                     const result = race.results.find(r => r.riderId === standing.riderId);
                     if (result) {
                         racesParticipated++;
@@ -2822,7 +2822,7 @@ const UI = {
                         if (result.position < bestPosition) bestPosition = result.position;
                         if (result.position <= 3) podiums++;
                     }
-                } else if (race.type === 'stage') {
+                } else if (race.raceFormat === 'stage') {
                     let participatedInRace = false;
                     race.stages.forEach(stage => {
                         const result = stage.results.find(r => r.riderId === standing.riderId);
