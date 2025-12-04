@@ -941,6 +941,7 @@ const DataManager = {
         });
 
         const teamTimeMap = new Map();
+        const teamsWithRiders = new Set(); // Track teams that have participated
 
         // Get all teams in the game
         game.teams.forEach(team => {
@@ -960,6 +961,7 @@ const DataManager = {
                         const rider = team.riders.find(r => r.id === result.riderId);
                         if (rider) {
                             riderTeamId = team.id;
+                            teamsWithRiders.add(team.id); // Track that this team has participated
                             break;
                         }
                     }
@@ -1000,11 +1002,11 @@ const DataManager = {
         console.log('Final team times BEFORE filtering:');
         Array.from(teamTimeMap.entries()).forEach(([teamId, totalTime]) => {
             const team = game.teams.find(t => t.id === teamId);
-            console.log(`  ${team ? team.name : 'Unknown'} (${teamId}): ${this.formatTime(totalTime)} (${totalTime})`);
+            console.log(`  ${team ? team.name : 'Unknown'} (${teamId}): ${this.formatTime(totalTime)} (${totalTime}) - Has riders: ${teamsWithRiders.has(teamId)}`);
         });
 
         race.teamClassification = Array.from(teamTimeMap.entries())
-            .filter(([teamId, totalTime]) => totalTime > 0) // Only include teams with results
+            .filter(([teamId, totalTime]) => teamsWithRiders.has(teamId)) // Include all teams that have participated
             .map(([teamId, totalTime]) => ({ teamId, totalTime }))
             .sort((a, b) => a.totalTime - b.totalTime)
             .map((item, index) => ({ ...item, position: index + 1 }));
