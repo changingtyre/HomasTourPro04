@@ -1783,7 +1783,8 @@ const UI = {
         } else {
             html += '<table>';
             html += '<tr><th>Pos.</th><th>Hold</th><th>Spiller</th><th>Samlet Tid</th></tr>';
-            race.teamClassification.forEach(tc => {
+            // Sort by position to ensure correct order (position 1 first)
+            race.teamClassification.sort((a, b) => a.position - b.position).forEach(tc => {
                 const team = DataManager.getTeamById(tc.teamId);
                 const player = team ? DataManager.getPlayerById(team.playerId) : null;
                 html += '<tr>';

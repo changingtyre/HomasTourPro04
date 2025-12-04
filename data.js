@@ -993,6 +993,12 @@ const DataManager = {
             .sort((a, b) => a.totalTime - b.totalTime)
             .map((item, index) => ({ ...item, position: index + 1 }));
 
+        console.log('Team classification:', race.teamClassification.length, 'teams');
+        if (race.teamClassification.length > 0) {
+            console.log('Winner:', race.teamClassification[0]);
+            console.log('All positions:', race.teamClassification.map(tc => ({ pos: tc.position, teamId: tc.teamId, time: this.formatTime(tc.totalTime) })));
+        }
+
         // Recalculate world tour points
         this.recalculateWorldTourPoints();
 
