@@ -1336,6 +1336,11 @@ const UI = {
                 <input type="text" id="edit-race-name" value="${race.name}" placeholder="Løbsnavn">
             </div>
             <div class="form-group">
+                <label>Dato (valgfrit)</label>
+                <input type="date" id="edit-race-date" value="${race.date || ''}">
+                <small style="color: #7f8c8d; display: block; margin-top: 5px;">Dette er løbets oprindelige dato, ikke spilledatoen</small>
+            </div>
+            <div class="form-group">
                 <label>Løbstype</label>
                 <select id="edit-race-type">
                     <option value="tour-de-france" ${race.type === 'tour-de-france' ? 'selected' : ''}>Tour de France (800 point)</option>
@@ -1355,6 +1360,7 @@ const UI = {
     saveEditRace() {
         const raceId = document.getElementById('edit-race-id').value;
         const newName = document.getElementById('edit-race-name').value.trim();
+        const newDate = document.getElementById('edit-race-date').value;
         const newType = document.getElementById('edit-race-type').value;
 
         if (!newName) {
@@ -1362,7 +1368,7 @@ const UI = {
             return;
         }
 
-        if (DataManager.editRace(raceId, newName, newType)) {
+        if (DataManager.editRace(raceId, newName, newType, newDate)) {
             this.closeModal();
             setTimeout(() => {
                 this.showGameDashboard();

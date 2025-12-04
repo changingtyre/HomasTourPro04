@@ -387,7 +387,7 @@ const DataManager = {
     },
 
     // Edit race
-    editRace(raceId, newName, newType) {
+    editRace(raceId, newName, newType, newDate = null) {
         const data = this.getData();
         if (!data.currentGameId) return false;
 
@@ -399,6 +399,7 @@ const DataManager = {
 
         race.name = newName;
         race.type = newType;
+        race.date = newDate || null;
 
         this.saveData(data);
 
