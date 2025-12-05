@@ -322,8 +322,8 @@ const DataManager = {
     },
 
     // Create race
-    createRace(raceName, raceType, raceFormat, raceDate = null) {
-        console.log('DataManager.createRace called with:', raceName, raceType, raceFormat, raceDate);
+    createRace(raceName, raceType, raceFormat, raceDate = null, totalStages = null) {
+        console.log('DataManager.createRace called with:', raceName, raceType, raceFormat, raceDate, totalStages);
         const data = this.getData();
         console.log('Current data:', data);
 
@@ -354,7 +354,10 @@ const DataManager = {
             pointsClassification: raceFormat === 'stage' ? [] : null,
             mountainClassification: raceFormat === 'stage' ? [] : null,
             teamClassification: raceFormat === 'stage' ? [] : null,
-            yellowJerseyDays: raceFormat === 'stage' ? {} : null
+            yellowJerseyDays: raceFormat === 'stage' ? {} : null,
+            // New fields for stage race management
+            totalStages: raceFormat === 'stage' ? (totalStages || 0) : null,
+            isComplete: raceFormat === 'stage' ? false : true // One-day races are complete immediately
         };
         console.log('Created race:', race);
 
@@ -422,6 +425,44 @@ const DataManager = {
         race.notes = notes || null;
 
         this.saveData(data);
+        return true;
+    },
+
+    // Update total stages for a stage race
+    updateTotalStages(raceId, totalStages) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race || race.raceFormat !== 'stage') return false;
+
+        race.totalStages = parseInt(totalStages) || 0;
+
+        this.saveData(data);
+        return true;
+    },
+
+    // Mark stage race as complete
+    markRaceAsComplete(raceId, isComplete = true) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return false;
+
+        race.isComplete = isComplete;
+
+        this.saveData(data);
+
+        // Recalculate world tour points when race status changes
+        this.recalculateWorldTourPoints();
+
         return true;
     },
 
@@ -1059,36 +1100,41 @@ const DataManager = {
                     this.addPointsToRider(game, result.riderId, points, result.position === 1);
                 });
             } else if (race.raceFormat === 'stage') {
-                // Stage race - general classification points
-                race.generalClassification.forEach(gc => {
-                    const points = PointsCalculator.getGCPoints(race.type, gc.position);
-                    this.addPointsToRider(game, gc.riderId, points, gc.position === 1);
-                });
+                // Check if race is complete (default to true for backward compatibility)
+                const raceComplete = race.isComplete !== false;
 
-                // Points classification
-                race.pointsClassification.forEach(pc => {
-                    const points = PointsCalculator.getJerseyPoints(race.type, pc.position, 'points');
-                    this.addPointsToRider(game, pc.riderId, points, false);
-                });
+                // Stage race - general classification points (only if race is complete)
+                if (raceComplete) {
+                    race.generalClassification.forEach(gc => {
+                        const points = PointsCalculator.getGCPoints(race.type, gc.position);
+                        this.addPointsToRider(game, gc.riderId, points, gc.position === 1);
+                    });
 
-                // Mountain classification
-                race.mountainClassification.forEach(mc => {
-                    const points = PointsCalculator.getJerseyPoints(race.type, mc.position, 'mountain');
-                    this.addPointsToRider(game, mc.riderId, points, false);
-                });
+                    // Points classification (only if race is complete)
+                    race.pointsClassification.forEach(pc => {
+                        const points = PointsCalculator.getJerseyPoints(race.type, pc.position, 'points');
+                        this.addPointsToRider(game, pc.riderId, points, false);
+                    });
 
-                // Stage wins
+                    // Mountain classification (only if race is complete)
+                    race.mountainClassification.forEach(mc => {
+                        const points = PointsCalculator.getJerseyPoints(race.type, mc.position, 'mountain');
+                        this.addPointsToRider(game, mc.riderId, points, false);
+                    });
+
+                    // Yellow jersey bonus points (only if race is complete)
+                    Object.entries(race.yellowJerseyDays || {}).forEach(([riderId, days]) => {
+                        const bonusPoints = PointsCalculator.getYellowJerseyBonus(race.type, days);
+                        this.addPointsToRider(game, riderId, bonusPoints, false);
+                    });
+                }
+
+                // Stage wins (always awarded, even during ongoing race)
                 race.stages.forEach(stage => {
                     stage.results.forEach(result => {
                         const points = PointsCalculator.getStagePoints(race.type, result.position);
                         this.addPointsToRider(game, result.riderId, points, result.position === 1);
                     });
-                });
-
-                // Yellow jersey bonus points
-                Object.entries(race.yellowJerseyDays || {}).forEach(([riderId, days]) => {
-                    const bonusPoints = PointsCalculator.getYellowJerseyBonus(race.type, days);
-                    this.addPointsToRider(game, riderId, bonusPoints, false);
                 });
             }
         });
