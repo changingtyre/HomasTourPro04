@@ -4,7 +4,8 @@ const UI = {
     currentGameInfo: null,
     sortState: {
         riderStandings: { column: 'points', direction: 'desc' },
-        teamStandings: { column: 'points', direction: 'desc' }
+        teamStandings: { column: 'points', direction: 'desc' },
+        raceResults: { column: 'position', direction: 'asc' }
     },
 
     init() {
@@ -648,6 +649,20 @@ const UI = {
         this.showTab('standings');
     },
 
+    // Sort race results
+    sortRaceResults(raceId, column) {
+        if (this.sortState.raceResults.column === column) {
+            // Toggle direction
+            this.sortState.raceResults.direction =
+                this.sortState.raceResults.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            // New column, default to ascending for text, ascending for position
+            this.sortState.raceResults.column = column;
+            this.sortState.raceResults.direction = 'asc';
+        }
+        this.viewRace(raceId);
+    },
+
     // Show statistics tab
     showStatisticsTab(container) {
         const game = DataManager.getCurrentGame();
@@ -684,7 +699,7 @@ const UI = {
                             racesParticipated++;
                             totalPositions += result.position;
                             if (result.position < bestPosition) bestPosition = result.position;
-                            if (result.position <= 3) podiums++;
+                            if (result.position >= 2 && result.position <= 3) podiums++;
                         }
                     } else if (race.raceFormat === 'stage') {
                         // Check if rider participated in any stage
@@ -704,7 +719,7 @@ const UI = {
                                 const position = gcPosition + 1;
                                 totalPositions += position;
                                 if (position < bestPosition) bestPosition = position;
-                                if (position <= 3) podiums++;
+                                if (position >= 2 && position <= 3) podiums++;
                             }
                         }
                     }
@@ -726,8 +741,13 @@ const UI = {
                 };
             });
 
-            // Sort by points (descending)
-            riderStats.sort((a, b) => b.points - a.points);
+            // Sort by points (descending), then by wins (descending) as tiebreaker
+            riderStats.sort((a, b) => {
+                if (b.points !== a.points) {
+                    return b.points - a.points;
+                }
+                return b.wins - a.wins;
+            });
 
             // Show top 15 riders
             const topRiders = riderStats.slice(0, 15);
@@ -1546,9 +1566,49 @@ const UI = {
         if (race.results.length === 0) {
             html += '<p>Ingen resultater endnu.</p>';
         } else {
-            const sortedResults = [...race.results].sort((a, b) => a.position - b.position);
+            // Sort results based on current sort state
+            const sortCol = this.sortState.raceResults.column;
+            const sortDir = this.sortState.raceResults.direction;
+
+            const sortedResults = [...race.results].sort((a, b) => {
+                let valA, valB;
+
+                if (sortCol === 'position') {
+                    valA = a.position;
+                    valB = b.position;
+                } else if (sortCol === 'rider') {
+                    const riderA = DataManager.getRiderById(a.riderId);
+                    const riderB = DataManager.getRiderById(b.riderId);
+                    valA = riderA ? riderA.name : '';
+                    valB = riderB ? riderB.name : '';
+                    return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (sortCol === 'team') {
+                    const riderA = DataManager.getRiderById(a.riderId);
+                    const riderB = DataManager.getRiderById(b.riderId);
+                    const teamA = riderA ? DataManager.getTeamById(riderA.teamId) : null;
+                    const teamB = riderB ? DataManager.getTeamById(riderB.teamId) : null;
+                    valA = teamA ? teamA.name : '';
+                    valB = teamB ? teamB.name : '';
+                    return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+
+                return sortDir === 'asc' ? valA - valB : valB - valA;
+            });
+
+            const arrow = (col) => {
+                if (this.sortState.raceResults.column === col) {
+                    return this.sortState.raceResults.direction === 'asc' ? ' ↑' : ' ↓';
+                }
+                return '';
+            };
+
             html += '<table>';
-            html += '<tr><th>Placering</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>World Tour Point</th></tr>';
+            html += '<tr>';
+            html += `<th style="cursor: pointer;" onclick="UI.sortRaceResults('${race.id}', 'position')">Placering${arrow('position')}</th>`;
+            html += `<th style="cursor: pointer;" onclick="UI.sortRaceResults('${race.id}', 'rider')">Rytter${arrow('rider')}</th>`;
+            html += `<th style="cursor: pointer;" onclick="UI.sortRaceResults('${race.id}', 'team')">Hold${arrow('team')}</th>`;
+            html += '<th>Tid</th><th>World Tour Point</th>';
+            html += '</tr>';
             sortedResults.forEach(result => {
                 const rider = DataManager.getRiderById(result.riderId);
                 const team = rider ? DataManager.getTeamById(rider.teamId) : null;
