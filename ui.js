@@ -1152,7 +1152,7 @@ const UI = {
             return;
         }
 
-        if (DataManager.editPlayer(playerId, newName)) {
+        if (DataManager.updatePlayer(playerId, newName)) {
             this.closeModal();
             setTimeout(() => {
                 this.showGameDashboard();
@@ -1197,7 +1197,7 @@ const UI = {
             return;
         }
 
-        if (DataManager.editTeam(teamId, newName)) {
+        if (DataManager.updateTeam(teamId, newName)) {
             this.closeModal();
             setTimeout(() => {
                 this.showGameDashboard();
@@ -1242,7 +1242,7 @@ const UI = {
             return;
         }
 
-        if (DataManager.editRider(riderId, newName)) {
+        if (DataManager.updateRider(riderId, newName)) {
             this.closeModal();
             setTimeout(() => {
                 this.showGameDashboard();

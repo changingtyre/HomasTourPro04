@@ -220,20 +220,20 @@ const DataManager = {
         return true;
     },
 
-    // Edit player name
-    editPlayer(playerId, newName) {
+    // Update player name
+    updatePlayer(playerId, newName) {
         const data = this.getData();
-        if (!data.currentGameId) return false;
+        if (!data.currentGameId) return null;
 
         const game = data.games.find(g => g.id === data.currentGameId);
-        if (!game) return false;
+        if (!game) return null;
 
         const player = game.players.find(p => p.id === playerId);
-        if (!player) return false;
+        if (!player) return null;
 
         player.name = newName;
         this.saveData(data);
-        return true;
+        return player;
     },
 
     // Delete team
@@ -263,20 +263,20 @@ const DataManager = {
         return true;
     },
 
-    // Edit team name
-    editTeam(teamId, newName) {
+    // Update team name
+    updateTeam(teamId, newName) {
         const data = this.getData();
-        if (!data.currentGameId) return false;
+        if (!data.currentGameId) return null;
 
         const game = data.games.find(g => g.id === data.currentGameId);
-        if (!game) return false;
+        if (!game) return null;
 
         const team = game.teams.find(t => t.id === teamId);
-        if (!team) return false;
+        if (!team) return null;
 
         team.name = newName;
         this.saveData(data);
-        return true;
+        return team;
     },
 
     // Delete rider
@@ -301,24 +301,24 @@ const DataManager = {
         return true;
     },
 
-    // Edit rider name
-    editRider(riderId, newName) {
+    // Update rider name
+    updateRider(riderId, newName) {
         const data = this.getData();
-        if (!data.currentGameId) return false;
+        if (!data.currentGameId) return null;
 
         const game = data.games.find(g => g.id === data.currentGameId);
-        if (!game) return false;
+        if (!game) return null;
 
         // Find which team the rider belongs to
-        const team = game.teams.find(t => t.riders.some(r => r.id === riderId));
-        if (!team) return false;
-
-        const rider = team.riders.find(r => r.id === riderId);
-        if (!rider) return false;
-
-        rider.name = newName;
-        this.saveData(data);
-        return true;
+        for (const team of game.teams) {
+            const rider = team.riders.find(r => r.id === riderId);
+            if (rider) {
+                rider.name = newName;
+                this.saveData(data);
+                return rider;
+            }
+        }
+        return null;
     },
 
     // Create race
