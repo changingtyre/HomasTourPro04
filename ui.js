@@ -1289,13 +1289,27 @@ const UI = {
             </div>
             <div class="form-group">
                 <label>Format</label>
-                <select id="race-format">
+                <select id="race-format" onchange="UI.toggleTotalStagesField()">
                     <option value="one-day">Endagsløb</option>
                     <option value="stage">Etapeløb</option>
                 </select>
             </div>
+            <div class="form-group" id="total-stages-group" style="display: none;">
+                <label>Antal Etaper</label>
+                <input type="number" id="race-total-stages" placeholder="f.eks. 21" min="1">
+                <small style="color: #7f8c8d; display: block; margin-top: 5px;">Hvor mange etaper har løbet i alt?</small>
+            </div>
             <button class="btn btn-success" onclick="UI.createRace()">Opret Løb</button>
         `);
+    },
+
+    // Toggle total stages field visibility
+    toggleTotalStagesField() {
+        const format = document.getElementById('race-format').value;
+        const totalStagesGroup = document.getElementById('total-stages-group');
+        if (totalStagesGroup) {
+            totalStagesGroup.style.display = format === 'stage' ? 'block' : 'none';
+        }
     },
 
     // Create race
@@ -1305,13 +1319,19 @@ const UI = {
             const date = document.getElementById('race-date').value;
             const type = document.getElementById('race-type').value;
             const format = document.getElementById('race-format').value;
+            const totalStages = format === 'stage' ? parseInt(document.getElementById('race-total-stages').value) || 0 : null;
 
             if (!name) {
                 alert('Indtast venligst et løbsnavn');
                 return;
             }
 
-            const race = DataManager.createRace(name, type, format, date);
+            if (format === 'stage' && (!totalStages || totalStages <= 0)) {
+                alert('Indtast venligst antal etaper');
+                return;
+            }
+
+            const race = DataManager.createRace(name, type, format, date, totalStages);
             this.closeModal();
 
             // Small delay to ensure modal is fully closed before navigating
@@ -1328,6 +1348,29 @@ const UI = {
     showEditRace(raceId) {
         const race = DataManager.getRaceById(raceId);
         if (!race) return;
+
+        const stageRaceFields = race.raceFormat === 'stage' ? `
+            <div class="form-group">
+                <label>Antal Etaper</label>
+                <input type="number" id="edit-race-total-stages" value="${race.totalStages || ''}" placeholder="Antal etaper" min="1">
+            </div>
+            <div class="form-group">
+                <label>Løbsstatus</label>
+                <div style="padding: 10px; background: ${race.isComplete ? '#d4edda' : '#fff3cd'}; border: 1px solid ${race.isComplete ? '#c3e6cb' : '#ffeaa7'}; border-radius: 4px; margin-bottom: 10px;">
+                    <strong>${race.isComplete ? '✓ Løbet er afsluttet' : '⚠ Løbet er i gang'}</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 0.9em; color: #666;">
+                        ${race.isComplete
+                            ? 'World Tour point for samlet klassement er tildelt'
+                            : 'World Tour point for samlet klassement tildeles når løbet afsluttes'}
+                    </p>
+                </div>
+                <button class="btn ${race.isComplete ? 'btn-warning' : 'btn-success'}"
+                        onclick="UI.toggleRaceComplete('${raceId}', ${!race.isComplete})"
+                        style="width: 100%;">
+                    ${race.isComplete ? 'Markér som igangværende' : 'Markér som afsluttet'}
+                </button>
+            </div>
+        ` : '';
 
         this.showModal(`
             <h2>Rediger Løb</h2>
@@ -1351,6 +1394,7 @@ const UI = {
                     <option value="worldcup-other" ${race.type === 'worldcup-other' ? 'selected' : ''}>World Cup Other (75 point)</option>
                 </select>
             </div>
+            ${stageRaceFields}
             <input type="hidden" id="edit-race-id" value="${raceId}">
             <button class="btn btn-success" onclick="UI.saveEditRace()">Gem</button>
             <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
@@ -1368,14 +1412,38 @@ const UI = {
             return;
         }
 
-        if (DataManager.editRace(raceId, newName, newType, newDate)) {
+        // Update basic race info
+        if (!DataManager.editRace(raceId, newName, newType, newDate)) {
+            alert('Fejl ved redigering af løb');
+            return;
+        }
+
+        // Update total stages if it's a stage race
+        const totalStagesInput = document.getElementById('edit-race-total-stages');
+        if (totalStagesInput) {
+            const totalStages = parseInt(totalStagesInput.value) || 0;
+            if (totalStages > 0) {
+                DataManager.updateTotalStages(raceId, totalStages);
+            }
+        }
+
+        this.closeModal();
+        setTimeout(() => {
+            this.showGameDashboard();
+            this.showTab('races');
+        }, 50);
+    },
+
+    // Toggle race complete status
+    toggleRaceComplete(raceId, isComplete) {
+        if (DataManager.markRaceAsComplete(raceId, isComplete)) {
+            // Refresh the edit dialog to show updated status
             this.closeModal();
             setTimeout(() => {
-                this.showGameDashboard();
-                this.showTab('races');
-            }, 50);
+                this.showEditRace(raceId);
+            }, 100);
         } else {
-            alert('Fejl ved redigering af løb');
+            alert('Fejl ved opdatering af løbsstatus');
         }
     },
 
@@ -1509,6 +1577,29 @@ const UI = {
         if (race.date) {
             html += `<p><strong>Dato:</strong> ${new Date(race.date).toLocaleDateString('da-DK')}</p>`;
         }
+
+        // Show race progress and status
+        const currentStages = race.stages ? race.stages.length : 0;
+        const totalStages = race.totalStages || 0;
+        const isComplete = race.isComplete !== false; // Default to true for backward compatibility
+
+        if (totalStages > 0) {
+            html += `<p><strong>Fremskridt:</strong> ${currentStages} af ${totalStages} etaper gennemført</p>`;
+        }
+
+        // Show completion status
+        if (!isComplete) {
+            html += `<div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 4px; margin-top: 10px;">`;
+            html += `<p style="margin: 0;"><strong>⚠ Løbet er i gang</strong></p>`;
+            html += `<p style="margin: 5px 0 0 0; font-size: 0.9em;">World Tour point for samlet klassement tildeles når løbet markeres som afsluttet.</p>`;
+            html += `</div>`;
+        } else {
+            html += `<div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 4px; margin-top: 10px;">`;
+            html += `<p style="margin: 0;"><strong>✓ Løbet er afsluttet</strong></p>`;
+            html += `<p style="margin: 5px 0 0 0; font-size: 0.9em;">World Tour point for samlet klassement er tildelt.</p>`;
+            html += `</div>`;
+        }
+
         if (race.notes) {
             html += `<div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px;">`;
             html += `<p style="margin: 0; white-space: pre-wrap;"><strong>📝 Noter:</strong><br>${race.notes}</p>`;
