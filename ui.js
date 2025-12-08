@@ -509,6 +509,10 @@ const UI = {
                 } else if (sortCol === 'points') {
                     valA = a.worldTourPoints;
                     valB = b.worldTourPoints;
+                    // Add wins as tiebreaker when points are equal
+                    if (valA === valB) {
+                        return sortDir === 'asc' ? a.wins - b.wins : b.wins - a.wins;
+                    }
                 } else if (sortCol === 'wins') {
                     valA = a.wins;
                     valB = b.wins;
