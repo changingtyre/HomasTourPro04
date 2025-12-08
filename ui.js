@@ -678,7 +678,7 @@ const UI = {
                 let podiums = 0; // Top 3 finishes
 
                 game.races.forEach(race => {
-                    if (race.type === 'one-day') {
+                    if (race.raceFormat === 'one-day') {
                         const result = race.results.find(r => r.riderId === standing.riderId);
                         if (result) {
                             racesParticipated++;
@@ -686,7 +686,7 @@ const UI = {
                             if (result.position < bestPosition) bestPosition = result.position;
                             if (result.position <= 3) podiums++;
                         }
-                    } else if (race.type === 'stage') {
+                    } else if (race.raceFormat === 'stage') {
                         // Check if rider participated in any stage
                         let participatedInRace = false;
                         race.stages.forEach(stage => {
@@ -1152,7 +1152,7 @@ const UI = {
             return;
         }
 
-        if (DataManager.editPlayer(playerId, newName)) {
+        if (DataManager.updatePlayer(playerId, newName)) {
             this.closeModal();
             setTimeout(() => {
                 this.showGameDashboard();
@@ -1197,7 +1197,7 @@ const UI = {
             return;
         }
 
-        if (DataManager.editTeam(teamId, newName)) {
+        if (DataManager.updateTeam(teamId, newName)) {
             this.closeModal();
             setTimeout(() => {
                 this.showGameDashboard();
@@ -1242,7 +1242,7 @@ const UI = {
             return;
         }
 
-        if (DataManager.editRider(riderId, newName)) {
+        if (DataManager.updateRider(riderId, newName)) {
             this.closeModal();
             setTimeout(() => {
                 this.showGameDashboard();
@@ -1289,13 +1289,27 @@ const UI = {
             </div>
             <div class="form-group">
                 <label>Format</label>
-                <select id="race-format">
+                <select id="race-format" onchange="UI.toggleTotalStagesField()">
                     <option value="one-day">Endagsløb</option>
                     <option value="stage">Etapeløb</option>
                 </select>
             </div>
+            <div class="form-group" id="total-stages-group" style="display: none;">
+                <label>Antal Etaper</label>
+                <input type="number" id="race-total-stages" placeholder="f.eks. 21" min="1">
+                <small style="color: #7f8c8d; display: block; margin-top: 5px;">Hvor mange etaper har løbet i alt?</small>
+            </div>
             <button class="btn btn-success" onclick="UI.createRace()">Opret Løb</button>
         `);
+    },
+
+    // Toggle total stages field visibility
+    toggleTotalStagesField() {
+        const format = document.getElementById('race-format').value;
+        const totalStagesGroup = document.getElementById('total-stages-group');
+        if (totalStagesGroup) {
+            totalStagesGroup.style.display = format === 'stage' ? 'block' : 'none';
+        }
     },
 
     // Create race
@@ -1305,13 +1319,19 @@ const UI = {
             const date = document.getElementById('race-date').value;
             const type = document.getElementById('race-type').value;
             const format = document.getElementById('race-format').value;
+            const totalStages = format === 'stage' ? parseInt(document.getElementById('race-total-stages').value) || 0 : null;
 
             if (!name) {
                 alert('Indtast venligst et løbsnavn');
                 return;
             }
 
-            const race = DataManager.createRace(name, type, format, date);
+            if (format === 'stage' && (!totalStages || totalStages <= 0)) {
+                alert('Indtast venligst antal etaper');
+                return;
+            }
+
+            const race = DataManager.createRace(name, type, format, date, totalStages);
             this.closeModal();
 
             // Small delay to ensure modal is fully closed before navigating
@@ -1329,11 +1349,39 @@ const UI = {
         const race = DataManager.getRaceById(raceId);
         if (!race) return;
 
+        const stageRaceFields = race.raceFormat === 'stage' ? `
+            <div class="form-group">
+                <label>Antal Etaper</label>
+                <input type="number" id="edit-race-total-stages" value="${race.totalStages || ''}" placeholder="Antal etaper" min="1">
+            </div>
+            <div class="form-group">
+                <label>Løbsstatus</label>
+                <div style="padding: 10px; background: ${race.isComplete ? '#d4edda' : '#fff3cd'}; border: 1px solid ${race.isComplete ? '#c3e6cb' : '#ffeaa7'}; border-radius: 4px; margin-bottom: 10px;">
+                    <strong>${race.isComplete ? '✓ Løbet er afsluttet' : '⚠ Løbet er i gang'}</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 0.9em; color: #666;">
+                        ${race.isComplete
+                            ? 'World Tour point for samlet klassement er tildelt'
+                            : 'World Tour point for samlet klassement tildeles når løbet afsluttes'}
+                    </p>
+                </div>
+                <button class="btn ${race.isComplete ? 'btn-warning' : 'btn-success'}"
+                        onclick="UI.toggleRaceComplete('${raceId}', ${!race.isComplete})"
+                        style="width: 100%;">
+                    ${race.isComplete ? 'Markér som igangværende' : 'Markér som afsluttet'}
+                </button>
+            </div>
+        ` : '';
+
         this.showModal(`
             <h2>Rediger Løb</h2>
             <div class="form-group">
                 <label>Løbsnavn</label>
                 <input type="text" id="edit-race-name" value="${race.name}" placeholder="Løbsnavn">
+            </div>
+            <div class="form-group">
+                <label>Dato (valgfrit)</label>
+                <input type="date" id="edit-race-date" value="${race.date || ''}">
+                <small style="color: #7f8c8d; display: block; margin-top: 5px;">Dette er løbets oprindelige dato, ikke spilledatoen</small>
             </div>
             <div class="form-group">
                 <label>Løbstype</label>
@@ -1346,6 +1394,7 @@ const UI = {
                     <option value="worldcup-other" ${race.type === 'worldcup-other' ? 'selected' : ''}>World Cup Other (75 point)</option>
                 </select>
             </div>
+            ${stageRaceFields}
             <input type="hidden" id="edit-race-id" value="${raceId}">
             <button class="btn btn-success" onclick="UI.saveEditRace()">Gem</button>
             <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
@@ -1355,6 +1404,7 @@ const UI = {
     saveEditRace() {
         const raceId = document.getElementById('edit-race-id').value;
         const newName = document.getElementById('edit-race-name').value.trim();
+        const newDate = document.getElementById('edit-race-date').value;
         const newType = document.getElementById('edit-race-type').value;
 
         if (!newName) {
@@ -1362,14 +1412,38 @@ const UI = {
             return;
         }
 
-        if (DataManager.editRace(raceId, newName, newType)) {
+        // Update basic race info
+        if (!DataManager.editRace(raceId, newName, newType, newDate)) {
+            alert('Fejl ved redigering af løb');
+            return;
+        }
+
+        // Update total stages if it's a stage race
+        const totalStagesInput = document.getElementById('edit-race-total-stages');
+        if (totalStagesInput) {
+            const totalStages = parseInt(totalStagesInput.value) || 0;
+            if (totalStages > 0) {
+                DataManager.updateTotalStages(raceId, totalStages);
+            }
+        }
+
+        this.closeModal();
+        setTimeout(() => {
+            this.showGameDashboard();
+            this.showTab('races');
+        }, 50);
+    },
+
+    // Toggle race complete status
+    toggleRaceComplete(raceId, isComplete) {
+        if (DataManager.markRaceAsComplete(raceId, isComplete)) {
+            // Refresh the edit dialog to show updated status
             this.closeModal();
             setTimeout(() => {
-                this.showGameDashboard();
-                this.showTab('races');
-            }, 50);
+                this.showEditRace(raceId);
+            }, 100);
         } else {
-            alert('Fejl ved redigering af løb');
+            alert('Fejl ved opdatering af løbsstatus');
         }
     },
 
@@ -1503,6 +1577,29 @@ const UI = {
         if (race.date) {
             html += `<p><strong>Dato:</strong> ${new Date(race.date).toLocaleDateString('da-DK')}</p>`;
         }
+
+        // Show race progress and status
+        const currentStages = race.stages ? race.stages.length : 0;
+        const totalStages = race.totalStages || 0;
+        const isComplete = race.isComplete !== false; // Default to true for backward compatibility
+
+        if (totalStages > 0) {
+            html += `<p><strong>Fremskridt:</strong> ${currentStages} af ${totalStages} etaper gennemført</p>`;
+        }
+
+        // Show completion status
+        if (!isComplete) {
+            html += `<div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 4px; margin-top: 10px;">`;
+            html += `<p style="margin: 0;"><strong>⚠ Løbet er i gang</strong></p>`;
+            html += `<p style="margin: 5px 0 0 0; font-size: 0.9em;">World Tour point for samlet klassement tildeles når løbet markeres som afsluttet.</p>`;
+            html += `</div>`;
+        } else {
+            html += `<div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 4px; margin-top: 10px;">`;
+            html += `<p style="margin: 0;"><strong>✓ Løbet er afsluttet</strong></p>`;
+            html += `<p style="margin: 5px 0 0 0; font-size: 0.9em;">World Tour point for samlet klassement er tildelt.</p>`;
+            html += `</div>`;
+        }
+
         if (race.notes) {
             html += `<div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px;">`;
             html += `<p style="margin: 0; white-space: pre-wrap;"><strong>📝 Noter:</strong><br>${race.notes}</p>`;
@@ -1777,7 +1874,8 @@ const UI = {
         } else {
             html += '<table>';
             html += '<tr><th>Pos.</th><th>Hold</th><th>Spiller</th><th>Samlet Tid</th></tr>';
-            race.teamClassification.forEach(tc => {
+            // Sort by position to ensure correct order (position 1 first)
+            race.teamClassification.sort((a, b) => a.position - b.position).forEach(tc => {
                 const team = DataManager.getTeamById(tc.teamId);
                 const player = team ? DataManager.getPlayerById(team.playerId) : null;
                 html += '<tr>';
@@ -1966,7 +2064,7 @@ const UI = {
                 <tr id="result-row-${position}">
                     <td style="text-align: center; font-weight: bold;">${position}.</td>
                     <td>
-                        <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                        <select id="rider-${position}" style="width: 100%; padding: 5px;" onchange="UI.updateRiderDropdowns()">
                             ${riderOptions}
                         </select>
                         ${existingResult ? `<script>document.getElementById('rider-${position}').value = '${existingResult.riderId}';</script>` : ''}
@@ -2022,6 +2120,45 @@ const UI = {
                     if (select) select.value = existingResult.riderId;
                 }
             }
+            // Update dropdowns to disable already selected riders
+            UI.updateRiderDropdowns();
+        });
+    },
+
+    // Update rider dropdowns to prevent duplicate selections
+    updateRiderDropdowns() {
+        // Get all rider dropdowns
+        const allSelects = document.querySelectorAll('select[id^="rider-"]');
+
+        // Collect all currently selected rider IDs
+        const selectedRiders = new Set();
+        allSelects.forEach(select => {
+            if (select.value) {
+                selectedRiders.add(select.value);
+            }
+        });
+
+        // Update each dropdown
+        allSelects.forEach(select => {
+            const currentValue = select.value;
+            const options = select.querySelectorAll('option');
+
+            options.forEach(option => {
+                // Skip the empty/placeholder option
+                if (!option.value) {
+                    option.disabled = false;
+                    return;
+                }
+
+                // Disable if rider is selected elsewhere (but not in this dropdown)
+                if (selectedRiders.has(option.value) && option.value !== currentValue) {
+                    option.disabled = true;
+                    option.style.color = '#ccc';
+                } else {
+                    option.disabled = false;
+                    option.style.color = '';
+                }
+            });
         });
     },
 
@@ -2045,7 +2182,7 @@ const UI = {
             row.innerHTML = `
                 <td style="text-align: center; font-weight: bold;">${position}.</td>
                 <td>
-                    <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                    <select id="rider-${position}" style="width: 100%; padding: 5px;" onchange="UI.updateRiderDropdowns()">
                         ${riderOptions}
                     </select>
                 </td>
@@ -2065,6 +2202,9 @@ const UI = {
             `;
             tbody.appendChild(row);
         }
+
+        // Update dropdowns to reflect already selected riders
+        UI.updateRiderDropdowns();
 
         // Update button to add more from new position
         const button = event.target;
@@ -2094,7 +2234,7 @@ const UI = {
             row.innerHTML = `
                 <td style="text-align: center; font-weight: bold;">${position}.</td>
                 <td>
-                    <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                    <select id="rider-${position}" style="width: 100%; padding: 5px;" onchange="UI.updateRiderDropdowns()">
                         ${riderOptions}
                     </select>
                 </td>
@@ -2108,6 +2248,9 @@ const UI = {
             `;
             tbody.appendChild(row);
         }
+
+        // Update dropdowns to reflect already selected riders
+        UI.updateRiderDropdowns();
 
         // Update button to add more from new position
         const button = event.target;
@@ -2218,7 +2361,7 @@ const UI = {
                 <tr id="stage-result-row-${position}">
                     <td style="text-align: center; font-weight: bold;">${position}.</td>
                     <td>
-                        <select id="rider-${position}" style="width: 100%; padding: 5px;">
+                        <select id="rider-${position}" style="width: 100%; padding: 5px;" onchange="UI.updateRiderDropdowns()">
                             ${riderOptions}
                         </select>
                     </td>
@@ -2276,6 +2419,8 @@ const UI = {
                     if (select) select.value = existingResult.riderId;
                 }
             }
+            // Update dropdowns to disable already selected riders
+            UI.updateRiderDropdowns();
         });
     },
 
@@ -2742,7 +2887,7 @@ const UI = {
 
         let csv = '';
 
-        if (race.type === 'one-day') {
+        if (race.raceFormat === 'one-day') {
             // One-day race export
             csv = 'Position,Rytter,Hold,Tid,Point\n';
 
@@ -2754,7 +2899,7 @@ const UI = {
 
                 csv += `${result.position},"${riderName}","${teamName}","${result.time}",${result.points}\n`;
             });
-        } else if (race.type === 'stage') {
+        } else if (race.raceFormat === 'stage') {
             // Stage race export - include GC
             csv = 'Type,Stage,Position,Rytter,Hold,Tid,Point\n';
 
@@ -2808,7 +2953,7 @@ const UI = {
             let podiums = 0;
 
             game.races.forEach(race => {
-                if (race.type === 'one-day') {
+                if (race.raceFormat === 'one-day') {
                     const result = race.results.find(r => r.riderId === standing.riderId);
                     if (result) {
                         racesParticipated++;
@@ -2816,7 +2961,7 @@ const UI = {
                         if (result.position < bestPosition) bestPosition = result.position;
                         if (result.position <= 3) podiums++;
                     }
-                } else if (race.type === 'stage') {
+                } else if (race.raceFormat === 'stage') {
                     let participatedInRace = false;
                     race.stages.forEach(stage => {
                         const result = stage.results.find(r => r.riderId === standing.riderId);

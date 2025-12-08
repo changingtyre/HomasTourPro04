@@ -220,20 +220,20 @@ const DataManager = {
         return true;
     },
 
-    // Edit player name
-    editPlayer(playerId, newName) {
+    // Update player name
+    updatePlayer(playerId, newName) {
         const data = this.getData();
-        if (!data.currentGameId) return false;
+        if (!data.currentGameId) return null;
 
         const game = data.games.find(g => g.id === data.currentGameId);
-        if (!game) return false;
+        if (!game) return null;
 
         const player = game.players.find(p => p.id === playerId);
-        if (!player) return false;
+        if (!player) return null;
 
         player.name = newName;
         this.saveData(data);
-        return true;
+        return player;
     },
 
     // Delete team
@@ -263,20 +263,20 @@ const DataManager = {
         return true;
     },
 
-    // Edit team name
-    editTeam(teamId, newName) {
+    // Update team name
+    updateTeam(teamId, newName) {
         const data = this.getData();
-        if (!data.currentGameId) return false;
+        if (!data.currentGameId) return null;
 
         const game = data.games.find(g => g.id === data.currentGameId);
-        if (!game) return false;
+        if (!game) return null;
 
         const team = game.teams.find(t => t.id === teamId);
-        if (!team) return false;
+        if (!team) return null;
 
         team.name = newName;
         this.saveData(data);
-        return true;
+        return team;
     },
 
     // Delete rider
@@ -301,29 +301,29 @@ const DataManager = {
         return true;
     },
 
-    // Edit rider name
-    editRider(riderId, newName) {
+    // Update rider name
+    updateRider(riderId, newName) {
         const data = this.getData();
-        if (!data.currentGameId) return false;
+        if (!data.currentGameId) return null;
 
         const game = data.games.find(g => g.id === data.currentGameId);
-        if (!game) return false;
+        if (!game) return null;
 
         // Find which team the rider belongs to
-        const team = game.teams.find(t => t.riders.some(r => r.id === riderId));
-        if (!team) return false;
-
-        const rider = team.riders.find(r => r.id === riderId);
-        if (!rider) return false;
-
-        rider.name = newName;
-        this.saveData(data);
-        return true;
+        for (const team of game.teams) {
+            const rider = team.riders.find(r => r.id === riderId);
+            if (rider) {
+                rider.name = newName;
+                this.saveData(data);
+                return rider;
+            }
+        }
+        return null;
     },
 
     // Create race
-    createRace(raceName, raceType, raceFormat, raceDate = null) {
-        console.log('DataManager.createRace called with:', raceName, raceType, raceFormat, raceDate);
+    createRace(raceName, raceType, raceFormat, raceDate = null, totalStages = null) {
+        console.log('DataManager.createRace called with:', raceName, raceType, raceFormat, raceDate, totalStages);
         const data = this.getData();
         console.log('Current data:', data);
 
@@ -354,7 +354,10 @@ const DataManager = {
             pointsClassification: raceFormat === 'stage' ? [] : null,
             mountainClassification: raceFormat === 'stage' ? [] : null,
             teamClassification: raceFormat === 'stage' ? [] : null,
-            yellowJerseyDays: raceFormat === 'stage' ? {} : null
+            yellowJerseyDays: raceFormat === 'stage' ? {} : null,
+            // New fields for stage race management
+            totalStages: raceFormat === 'stage' ? (totalStages || 0) : null,
+            isComplete: raceFormat === 'stage' ? false : true // One-day races are complete immediately
         };
         console.log('Created race:', race);
 
@@ -387,7 +390,7 @@ const DataManager = {
     },
 
     // Edit race
-    editRace(raceId, newName, newType) {
+    editRace(raceId, newName, newType, newDate = null) {
         const data = this.getData();
         if (!data.currentGameId) return false;
 
@@ -399,6 +402,7 @@ const DataManager = {
 
         race.name = newName;
         race.type = newType;
+        race.date = newDate || null;
 
         this.saveData(data);
 
@@ -422,6 +426,44 @@ const DataManager = {
         race.notes = notes || null;
 
         this.saveData(data);
+        return true;
+    },
+
+    // Update total stages for a stage race
+    updateTotalStages(raceId, totalStages) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race || race.raceFormat !== 'stage') return false;
+
+        race.totalStages = parseInt(totalStages) || 0;
+
+        this.saveData(data);
+        return true;
+    },
+
+    // Mark stage race as complete
+    markRaceAsComplete(raceId, isComplete = true) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return false;
+
+        race.isComplete = isComplete;
+
+        this.saveData(data);
+
+        // Recalculate world tour points when race status changes
+        this.recalculateWorldTourPoints();
+
         return true;
     },
 
@@ -466,8 +508,10 @@ const DataManager = {
         // Remove stage from race
         race.stages = race.stages.filter(s => s.id !== stageId);
 
-        // Recalculate classifications and world tour points after deleting stage
+        // Save the deletion first
         this.saveData(data);
+
+        // Recalculate classifications and world tour points after deleting stage
         this.recalculateClassifications(raceId);
         this.recalculateWorldTourPoints();
 
@@ -528,10 +572,12 @@ const DataManager = {
         };
         stage.results.push(result);
 
-        // Recalculate classifications
+        // Save the stage result first
+        this.saveData(data);
+
+        // Recalculate classifications (this will save again with updated classifications)
         this.recalculateClassifications(raceId);
 
-        this.saveData(data);
         return result;
     },
 
@@ -563,10 +609,12 @@ const DataManager = {
             }
         });
 
-        // Recalculate classifications
+        // Save the stage results first
+        this.saveData(data);
+
+        // Recalculate classifications (this will save again with updated classifications)
         this.recalculateClassifications(raceId);
 
-        this.saveData(data);
         return stage.results;
     },
 
@@ -647,8 +695,10 @@ const DataManager = {
         // Remove result for this rider
         stage.results = stage.results.filter(r => r.riderId !== riderId);
 
-        // Recalculate classifications and world tour points
+        // Save the deletion first
         this.saveData(data);
+
+        // Recalculate classifications and world tour points
         this.recalculateClassifications(raceId);
         this.recalculateWorldTourPoints();
 
@@ -925,15 +975,23 @@ const DataManager = {
         console.log('Mountain classification:', race.mountainClassification.length, 'riders');
 
         // Calculate team classification (sum of times for first 3 riders from each team on each stage)
+        console.log('=== TEAM CLASSIFICATION DEBUG ===');
+        console.log('Total teams in game:', game.teams.length);
+        game.teams.forEach(team => {
+            console.log(`  Team: ${team.name} (ID: ${team.id}), Riders: ${team.riders.length}`);
+        });
+
         const teamTimeMap = new Map();
+        const teamsWithRiders = new Set(); // Track teams that have participated
 
         // Get all teams in the game
         game.teams.forEach(team => {
             teamTimeMap.set(team.id, 0);
         });
 
-        race.stages.forEach(stage => {
+        race.stages.forEach((stage, stageIndex) => {
             if (stage.results && stage.results.length > 0) {
+                console.log(`Stage ${stageIndex + 1}: ${stage.name || 'Unnamed'}`);
                 // Group riders by team for this stage
                 const teamRidersMap = new Map();
 
@@ -944,6 +1002,7 @@ const DataManager = {
                         const rider = team.riders.find(r => r.id === result.riderId);
                         if (rider) {
                             riderTeamId = team.id;
+                            teamsWithRiders.add(team.id); // Track that this team has participated
                             break;
                         }
                     }
@@ -962,6 +1021,7 @@ const DataManager = {
 
                 // For each team, sum the times of the first 3 riders
                 teamRidersMap.forEach((riders, teamId) => {
+                    const team = game.teams.find(t => t.id === teamId);
                     // Sort by position (lower is better)
                     riders.sort((a, b) => a.position - b.position);
 
@@ -971,6 +1031,8 @@ const DataManager = {
                     // Sum their times
                     const stageTeamTime = top3Riders.reduce((sum, rider) => sum + rider.time, 0);
 
+                    console.log(`  ${team ? team.name : 'Unknown'}: ${riders.length} riders, top 3 time: ${this.formatTime(stageTeamTime)}`);
+
                     // Add to total team time
                     const currentTotalTime = teamTimeMap.get(teamId) || 0;
                     teamTimeMap.set(teamId, currentTotalTime + stageTeamTime);
@@ -978,11 +1040,25 @@ const DataManager = {
             }
         });
 
+        console.log('Final team times BEFORE filtering:');
+        Array.from(teamTimeMap.entries()).forEach(([teamId, totalTime]) => {
+            const team = game.teams.find(t => t.id === teamId);
+            console.log(`  ${team ? team.name : 'Unknown'} (${teamId}): ${this.formatTime(totalTime)} (${totalTime}) - Has riders: ${teamsWithRiders.has(teamId)}`);
+        });
+
         race.teamClassification = Array.from(teamTimeMap.entries())
-            .filter(([teamId, totalTime]) => totalTime > 0) // Only include teams with results
+            .filter(([teamId, totalTime]) => teamsWithRiders.has(teamId)) // Include all teams that have participated
             .map(([teamId, totalTime]) => ({ teamId, totalTime }))
             .sort((a, b) => a.totalTime - b.totalTime)
             .map((item, index) => ({ ...item, position: index + 1 }));
+
+        console.log('Final team classification AFTER filtering and sorting:', race.teamClassification.length, 'teams');
+        if (race.teamClassification.length > 0) {
+            race.teamClassification.forEach(tc => {
+                const team = game.teams.find(t => t.id === tc.teamId);
+                console.log(`  Pos ${tc.position}: ${team ? team.name : 'Unknown'} - ${this.formatTime(tc.totalTime)}`);
+            });
+        }
 
         // Recalculate world tour points
         this.recalculateWorldTourPoints();
@@ -1059,36 +1135,41 @@ const DataManager = {
                     this.addPointsToRider(game, result.riderId, points, result.position === 1);
                 });
             } else if (race.raceFormat === 'stage') {
-                // Stage race - general classification points
-                race.generalClassification.forEach(gc => {
-                    const points = PointsCalculator.getGCPoints(race.type, gc.position);
-                    this.addPointsToRider(game, gc.riderId, points, gc.position === 1);
-                });
+                // Check if race is complete (default to true for backward compatibility)
+                const raceComplete = race.isComplete !== false;
 
-                // Points classification
-                race.pointsClassification.forEach(pc => {
-                    const points = PointsCalculator.getJerseyPoints(race.type, pc.position, 'points');
-                    this.addPointsToRider(game, pc.riderId, points, false);
-                });
+                // Stage race - general classification points (only if race is complete)
+                if (raceComplete) {
+                    race.generalClassification.forEach(gc => {
+                        const points = PointsCalculator.getGCPoints(race.type, gc.position);
+                        this.addPointsToRider(game, gc.riderId, points, gc.position === 1);
+                    });
 
-                // Mountain classification
-                race.mountainClassification.forEach(mc => {
-                    const points = PointsCalculator.getJerseyPoints(race.type, mc.position, 'mountain');
-                    this.addPointsToRider(game, mc.riderId, points, false);
-                });
+                    // Points classification (only if race is complete)
+                    race.pointsClassification.forEach(pc => {
+                        const points = PointsCalculator.getJerseyPoints(race.type, pc.position, 'points');
+                        this.addPointsToRider(game, pc.riderId, points, false);
+                    });
 
-                // Stage wins
+                    // Mountain classification (only if race is complete)
+                    race.mountainClassification.forEach(mc => {
+                        const points = PointsCalculator.getJerseyPoints(race.type, mc.position, 'mountain');
+                        this.addPointsToRider(game, mc.riderId, points, false);
+                    });
+
+                    // Yellow jersey bonus points (only if race is complete)
+                    Object.entries(race.yellowJerseyDays || {}).forEach(([riderId, days]) => {
+                        const bonusPoints = PointsCalculator.getYellowJerseyBonus(race.type, days);
+                        this.addPointsToRider(game, riderId, bonusPoints, false);
+                    });
+                }
+
+                // Stage wins (always awarded, even during ongoing race)
                 race.stages.forEach(stage => {
                     stage.results.forEach(result => {
                         const points = PointsCalculator.getStagePoints(race.type, result.position);
                         this.addPointsToRider(game, result.riderId, points, result.position === 1);
                     });
-                });
-
-                // Yellow jersey bonus points
-                Object.entries(race.yellowJerseyDays || {}).forEach(([riderId, days]) => {
-                    const bonusPoints = PointsCalculator.getYellowJerseyBonus(race.type, days);
-                    this.addPointsToRider(game, riderId, bonusPoints, false);
                 });
             }
         });
