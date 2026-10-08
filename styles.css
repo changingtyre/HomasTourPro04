@@ -86,6 +86,7 @@ header h1 {
 
 /* Skrivebeskyttet visning: skjul alt der redigerer data */
 body.readonly .backup-buttons,
+body.readonly .quick-actions,
 body.readonly [onclick*="UI.showAdd"],
 body.readonly [onclick*="UI.showCreate"],
 body.readonly [onclick*="UI.showEdit"],

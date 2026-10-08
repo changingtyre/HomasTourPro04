@@ -197,18 +197,10 @@ const UI = {
     showOverviewTab(container) {
         const game = DataManager.getCurrentGame();
 
-        let html = '<div class="card">';
-        html += `<h2>${game.name} - Overblik</h2>`;
-        html += '<div class="grid grid-3">';
-        html += `<div><h3>${game.players.length}</h3><p>Spillere</p></div>`;
-        html += `<div><h3>${game.teams.length}</h3><p>Hold</p></div>`;
-        html += `<div><h3>${game.races.length}</h3><p>Løb</p></div>`;
-        html += '</div>';
-        html += '</div>';
+        let html = '';
 
         // Quick actions
-        html += '<div class="card">';
-        html += '<h2>Hurtig Start</h2>';
+        html += '<div class="card quick-actions">';
         html += '<div class="flex gap-10" style="flex-wrap: wrap;">';
         html += '<button class="btn btn-primary" onclick="UI.showAddPlayer()">Tilføj Spiller</button>';
         html += '<button class="btn btn-primary" onclick="UI.showAddTeam()">Tilføj Hold</button>';
@@ -216,11 +208,12 @@ const UI = {
         html += '</div>';
         html += '</div>';
 
-        // Recent races
+        // Race calendar: latest races by race date (falls back to creation date)
         if (game.races.length > 0) {
             html += '<div class="card">';
-            html += '<h2>Seneste Løb</h2>';
-            const recentRaces = game.races.slice(-5).reverse();
+            html += '<h2>Løbskalender</h2>';
+            const raceTime = race => new Date(race.date || race.createdDate).getTime();
+            const recentRaces = [...game.races].sort((a, b) => raceTime(b) - raceTime(a));
             html += '<table>';
             html += '<tr><th>Løb</th><th>Vinder</th><th>Dato</th></tr>';
             recentRaces.forEach(race => {
@@ -246,7 +239,7 @@ const UI = {
                 html += '<tr>';
                 html += `<td><a href="#" onclick="UI.viewRace('${race.id}'); return false;">${race.name}</a></td>`;
                 html += `<td>${winner}</td>`;
-                html += `<td>${new Date(race.createdDate).toLocaleDateString('da-DK')}</td>`;
+                html += `<td>${new Date(race.date || race.createdDate).toLocaleDateString('da-DK')}</td>`;
                 html += '</tr>';
             });
             html += '</table>';
