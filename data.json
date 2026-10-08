@@ -73,17 +73,17 @@
             },
             {
               "id": "rider-1772142814693",
-              "name": "Manuel Beltran",
+              "name": "Manuel BELTRAN",
               "teamId": "team-1764359563963"
             },
             {
               "id": "rider-1772142825571",
-              "name": "Floyd Landis",
+              "name": "Floyd LANDIS",
               "teamId": "team-1764359563963"
             },
             {
               "id": "rider-1781039889814",
-              "name": "José Azevedo",
+              "name": "José AZEVEDO",
               "teamId": "team-1764359563963"
             }
           ]
@@ -125,7 +125,7 @@
             },
             {
               "id": "rider-1781039911360",
-              "name": "Levi Leipheimer",
+              "name": "Levi LEIPHEIMER",
               "teamId": "team-1764359620086"
             }
           ]
@@ -172,7 +172,7 @@
             },
             {
               "id": "rider-1781039902936",
-              "name": "Jan Ullrich",
+              "name": "Jan ULLRICH",
               "teamId": "team-1764359665627"
             }
           ]
@@ -219,12 +219,12 @@
             },
             {
               "id": "rider-1772143123755",
-              "name": "Andy Schleck",
+              "name": "Andy SCHLECK",
               "teamId": "team-1764359670908"
             },
             {
               "id": "rider-1772143130870",
-              "name": "Frank Schleck",
+              "name": "Frank SCHLECK",
               "teamId": "team-1764359670908"
             }
           ]
@@ -261,7 +261,7 @@
             },
             {
               "id": "rider-1772143146401",
-              "name": "Laurant Dufaux",
+              "name": "Laurant DUFAUX",
               "teamId": "team-1764359680989"
             }
           ]
@@ -368,7 +368,8 @@
           "mountainClassification": null,
           "teamClassification": null,
           "yellowJerseyDays": null,
-          "date": "2004-04-04"
+          "date": "2004-04-04",
+          "country": "be"
         },
         {
           "id": "race-1764359869642",
@@ -484,7 +485,8 @@
           "mountainClassification": null,
           "teamClassification": null,
           "yellowJerseyDays": null,
-          "date": "2004-03-20"
+          "date": "2004-03-20",
+          "country": "it"
         },
         {
           "id": "race-1765302783327",
@@ -603,7 +605,8 @@
           "yellowJerseyDays": null,
           "totalStages": null,
           "isComplete": true,
-          "notes": "Til stede: \nBrian\nDan\nAugust\nLaurits\nTue"
+          "notes": "Til stede: \nBrian\nDan\nAugust\nLaurits\nTue",
+          "country": "fr"
         },
         {
           "id": "race-1770217074715",
@@ -702,7 +705,8 @@
           "yellowJerseyDays": null,
           "totalStages": null,
           "isComplete": true,
-          "notes": "[Liege – Bastogne – Liege] B – C – ▲G [La Redoute] – D – ▲E [La Roche aux Faucons] – B – C – ▲G [St.Nicolas] – D – A\n\n\nLa Redoute\n•\tKategori 3\n•\t1,6-2 km med gennemsnitlig stigning på 8,9-9,4%\n•\tDen mest ikoniske stigning i løbet, selvom den teknisk set ikke er den sværeste\nLa Roche aux Faucons\n•\tKategori 3\n•\t1,3 km med gennemsnitlig stigning på 11%\n•\tHårdere stigning end La Redoute rent teknisk.\nSaint-Nicolas (Côte de Saint-Nicolas)\n•\tKategori 4\n•\t1,2-1,4 km med gennemsnitlig stigning på 8-9,6%"
+          "notes": "[Liege – Bastogne – Liege] B – C – ▲G [La Redoute] – D – ▲E [La Roche aux Faucons] – B – C – ▲G [St.Nicolas] – D – A\n\n\nLa Redoute\n•\tKategori 3\n•\t1,6-2 km med gennemsnitlig stigning på 8,9-9,4%\n•\tDen mest ikoniske stigning i løbet, selvom den teknisk set ikke er den sværeste\nLa Roche aux Faucons\n•\tKategori 3\n•\t1,3 km med gennemsnitlig stigning på 11%\n•\tHårdere stigning end La Redoute rent teknisk.\nSaint-Nicolas (Côte de Saint-Nicolas)\n•\tKategori 4\n•\t1,2-1,4 km med gennemsnitlig stigning på 8-9,6%",
+          "country": "be"
         },
         {
           "id": "race-1770299814466",
@@ -1746,7 +1750,8 @@
           "totalStages": 4,
           "isComplete": true,
           "notes": "A-B-C-D-E (bjerg) -B-C-D Sprint -A-B\n\nEkstra formkort fra første etape: \nNardello\nGuerini\nZabel\nBettini\nVirenque\nLandis\nKyllingen\nPiil",
-          "useLegacySprintPoints": true
+          "useLegacySprintPoints": true,
+          "country": "it"
         },
         {
           "id": "race-1781010506953",
@@ -2013,8 +2018,9 @@
                 },
                 {
                   "riderId": "rider-1764874408874",
-                  "time": "8:48",
-                  "position": 20
+                  "time": "DNF",
+                  "position": 20,
+                  "status": "DNF"
                 }
               ],
               "mountains": [
@@ -2449,34 +2455,35 @@
               "position": 15
             },
             {
-              "riderId": "rider-1764874408874",
-              "totalTime": 630,
-              "bonusSeconds": 0,
-              "position": 16
-            },
-            {
               "riderId": "rider-1772128827854",
               "totalTime": 690,
               "bonusSeconds": 0,
-              "position": 17
+              "position": 16
             },
             {
               "riderId": "rider-1764874527565",
               "totalTime": 786,
               "bonusSeconds": 0,
-              "position": 18
+              "position": 17
             },
             {
               "riderId": "rider-1764359634068",
               "totalTime": 792,
               "bonusSeconds": 0,
-              "position": 19
+              "position": 18
             },
             {
               "riderId": "rider-1764874595405",
               "totalTime": 906,
               "bonusSeconds": 0,
-              "position": 20
+              "position": 19
+            },
+            {
+              "riderId": "rider-1764874408874",
+              "dnf": "DNF",
+              "position": null,
+              "totalTime": null,
+              "bonusSeconds": 0
             }
           ],
           "pointsClassification": [
@@ -2526,140 +2533,141 @@
               "position": 9
             },
             {
-              "riderId": "rider-1764874408874",
-              "points": 27,
-              "position": 10
-            },
-            {
               "riderId": "rider-1765479176573",
               "points": 21,
-              "position": 11
+              "position": 10
             },
             {
               "riderId": "rider-1764359574667",
               "points": 20,
-              "position": 12
+              "position": 11
             },
             {
               "riderId": "rider-1772128989945",
               "points": 15,
-              "position": 13
+              "position": 12
             },
             {
               "riderId": "rider-1781039911360",
               "points": 14,
-              "position": 14
+              "position": 13
             },
             {
               "riderId": "rider-1764874611992",
               "points": 10,
-              "position": 15
+              "position": 14
             },
             {
               "riderId": "rider-1772128827854",
               "points": 9,
-              "position": 16
+              "position": 15
             },
             {
               "riderId": "rider-1772143130870",
               "points": 0,
-              "position": 17
+              "position": 16
             },
             {
               "riderId": "rider-1781039902936",
+              "points": 0,
+              "position": 17
+            },
+            {
+              "riderId": "rider-1764874527565",
               "points": 0,
               "position": 18
             },
             {
-              "riderId": "rider-1764874527565",
+              "riderId": "rider-1764874595405",
               "points": 0,
               "position": 19
             },
             {
-              "riderId": "rider-1764874595405",
-              "points": 0,
-              "position": 20
+              "riderId": "rider-1764874408874",
+              "dnf": "DNF",
+              "position": null,
+              "points": 0
             }
           ],
           "mountainClassification": [
             {
-              "riderId": "rider-1772128957743",
-              "points": 15,
+              "riderId": "rider-1764874895364",
+              "points": 20,
               "position": 1
             },
             {
-              "riderId": "rider-1764874902520",
+              "riderId": "rider-1772128957743",
               "points": 15,
               "position": 2
             },
             {
+              "riderId": "rider-1764874902520",
+              "points": 15,
+              "position": 3
+            },
+            {
+              "riderId": "rider-1764874527565",
+              "points": 15,
+              "position": 4
+            },
+            {
               "riderId": "rider-1764359593861",
               "points": 14,
-              "position": 3
+              "position": 5
+            },
+            {
+              "riderId": "rider-1772128827854",
+              "points": 14,
+              "position": 6
             },
             {
               "riderId": "rider-1765479234257",
               "points": 12,
-              "position": 4
-            },
-            {
-              "riderId": "rider-1764874895364",
-              "points": 12,
-              "position": 5
+              "position": 7
             },
             {
               "riderId": "rider-1764359574667",
               "points": 11,
-              "position": 6
-            },
-            {
-              "riderId": "rider-1772128827854",
-              "points": 10,
-              "position": 7
-            },
-            {
-              "riderId": "rider-1772128989945",
-              "points": 9,
               "position": 8
             },
             {
-              "riderId": "rider-1764874527565",
-              "points": 9,
+              "riderId": "rider-1781039902936",
+              "points": 10,
               "position": 9
+            },
+            {
+              "riderId": "rider-1772128989945",
+              "points": 10,
+              "position": 10
             },
             {
               "riderId": "rider-1764874685267",
               "points": 8,
-              "position": 10
+              "position": 11
             },
             {
               "riderId": "rider-1781039889814",
               "points": 6,
-              "position": 11
+              "position": 12
+            },
+            {
+              "riderId": "rider-1764874768174",
+              "points": 3,
+              "position": 13
             },
             {
               "riderId": "rider-1764874611992",
               "points": 2,
-              "position": 12
+              "position": 14
             },
             {
               "riderId": "rider-1781039911360",
               "points": 2,
-              "position": 13
+              "position": 15
             },
             {
               "riderId": "rider-1765479176573",
               "points": 1,
-              "position": 14
-            },
-            {
-              "riderId": "rider-1764874768174",
-              "points": 1,
-              "position": 15
-            },
-            {
-              "riderId": "rider-1781039902936",
-              "points": 0,
               "position": 16
             },
             {
@@ -2679,8 +2687,9 @@
             },
             {
               "riderId": "rider-1764874408874",
-              "points": 0,
-              "position": 20
+              "dnf": "DNF",
+              "position": null,
+              "points": 0
             }
           ],
           "teamClassification": [
@@ -2712,7 +2721,8 @@
           ],
           "yellowJerseyDays": {},
           "totalStages": 6,
-          "isComplete": false
+          "isComplete": false,
+          "country": "fr"
         }
       ],
       "riderStandings": [
