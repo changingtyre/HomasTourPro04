@@ -3,6 +3,18 @@ const DataManager = {
     STORAGE_KEY: 'cyclingTourData',
     fileHandle: null,
 
+    // Skrivebeskyttet: data holdes kun i hukommelsen og hentes fra data.json
+    readOnly: false,
+    readOnlyJson: null,
+
+    async loadReadOnlyData() {
+        const response = await fetch('data.json', { cache: 'no-store' });
+        if (!response.ok) throw new Error('data.json kunne ikke hentes (' + response.status + ')');
+        const data = await response.json();
+        if (!data.games || !Array.isArray(data.games)) throw new Error('data.json har ugyldigt format');
+        this.readOnlyJson = JSON.stringify(data);
+    },
+
     // Initialize data structure
     initData() {
         const data = this.loadData();
@@ -19,6 +31,9 @@ const DataManager = {
 
     // Load data from localStorage
     loadData() {
+        if (this.readOnly) {
+            return this.readOnlyJson ? JSON.parse(this.readOnlyJson) : null;
+        }
         try {
             const json = localStorage.getItem(this.STORAGE_KEY);
             console.log('loadData: Retrieved from localStorage:', json ? json.substring(0, 100) + '...' : 'null');
@@ -32,6 +47,10 @@ const DataManager = {
 
     // Save data to localStorage
     saveData(data) {
+        if (this.readOnly) {
+            this.readOnlyJson = JSON.stringify(data);
+            return;
+        }
         try {
             const jsonString = JSON.stringify(data);
             console.log('saveData: Saving to localStorage:', jsonString.substring(0, 100) + '...');
@@ -623,11 +642,13 @@ const DataManager = {
         // Add all new results (only time and position, points are calculated from sprints/mountains)
         results.forEach(result => {
             if (result.riderId && result.time && result.position) {
-                stage.results.push({
+                const entry = {
                     riderId: result.riderId,
                     time: result.time,
                     position: result.position
-                });
+                };
+                if (result.status) entry.status = result.status;
+                stage.results.push(entry);
             }
         });
 
@@ -678,11 +699,13 @@ const DataManager = {
         // Add all new results
         results.forEach(result => {
             if (result.riderId && result.time && result.position) {
-                race.results.push({
+                const entry = {
                     riderId: result.riderId,
                     time: result.time,
                     position: result.position
-                });
+                };
+                if (result.status) entry.status = result.status;
+                race.results.push(entry);
             }
         });
 
@@ -893,6 +916,12 @@ const DataManager = {
         return sprint.results;
     },
 
+    // DNF/DSQ — tjekker også time, da ældre data ikke gemte status
+    isNonFinisher(result) {
+        const marks = ['DNF', 'DSQ'];
+        return marks.includes(result.status) || marks.includes(result.time);
+    },
+
     // Recalculate classifications for stage race
     recalculateClassifications(raceId) {
         const data = this.getData();
@@ -920,6 +949,18 @@ const DataManager = {
                     bonusMap.set(result.riderId, currentBonus + bonus);
                 }
             });
+        });
+
+        // Ryttere der er udgået fjernes fra alle samlede stillinger
+        const nonFinishers = new Set();
+        race.stages.forEach(stage => {
+            stage.results.forEach(result => {
+                if (this.isNonFinisher(result)) nonFinishers.add(result.riderId);
+            });
+        });
+        nonFinishers.forEach(riderId => {
+            gcMap.delete(riderId);
+            bonusMap.delete(riderId);
         });
 
         race.generalClassification = Array.from(gcMap.entries())
@@ -958,6 +999,8 @@ const DataManager = {
             }
         });
 
+        nonFinishers.forEach(riderId => pointsMap.delete(riderId));
+
         race.pointsClassification = Array.from(pointsMap.entries())
             .map(([riderId, points]) => ({ riderId, points }))
             .sort((a, b) => b.points - a.points)
@@ -989,6 +1032,8 @@ const DataManager = {
             }
         });
 
+        nonFinishers.forEach(riderId => mountainMap.delete(riderId));
+
         race.mountainClassification = Array.from(mountainMap.entries())
             .map(([riderId, points]) => ({ riderId, points }))
             .sort((a, b) => b.points - a.points)
@@ -1019,6 +1064,8 @@ const DataManager = {
                 const teamRidersMap = new Map();
 
                 stage.results.forEach(result => {
+                    if (this.isNonFinisher(result)) return;
+
                     // Find which team this rider belongs to
                     let riderTeamId = null;
                     for (const team of game.teams) {
@@ -1174,6 +1221,7 @@ const DataManager = {
             if (race.raceFormat === 'one-day') {
                 // One-day race points
                 race.results.forEach(result => {
+                    if (this.isNonFinisher(result)) return;
                     const points = PointsCalculator.getOneDayRacePoints(race.type, result.position);
                     this.addPointsToRider(game, result.riderId, points, result.position === 1);
                 });
@@ -1210,6 +1258,7 @@ const DataManager = {
                 // Stage wins (always awarded, even during ongoing race)
                 race.stages.forEach(stage => {
                     stage.results.forEach(result => {
+                        if (this.isNonFinisher(result)) return;
                         const points = PointsCalculator.getStagePoints(race.type, result.position);
                         this.addPointsToRider(game, result.riderId, points, result.position === 1);
                     });

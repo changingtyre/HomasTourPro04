@@ -1694,7 +1694,7 @@ const UI = {
             sortedResults.forEach(result => {
                 const rider = DataManager.getRiderById(result.riderId);
                 const team = rider ? DataManager.getTeamById(rider.teamId) : null;
-                const points = PointsCalculator.getOneDayRacePoints(race.type, result.position);
+                const points = DataManager.isNonFinisher(result) ? 0 : PointsCalculator.getOneDayRacePoints(race.type, result.position);
                 html += '<tr>';
                 html += `<td>${result.position}</td>`;
                 html += `<td>${rider ? rider.name : 'Ukendt'}</td>`;
@@ -1915,8 +1915,9 @@ const UI = {
                     sortedResults.forEach(result => {
                         const rider = DataManager.getRiderById(result.riderId);
                         const team = rider ? DataManager.getTeamById(rider.teamId) : null;
-                        const wtPoints = PointsCalculator.getStagePoints(race.type, result.position);
-                        const sprintPoints = PointsCalculator.getStageFinishPoints(stage.stageType || 'flat', result.position, race.useLegacySprintPoints === true);
+                        const dnf = DataManager.isNonFinisher(result);
+                        const wtPoints = dnf ? 0 : PointsCalculator.getStagePoints(race.type, result.position);
+                        const sprintPoints = dnf ? 0 : PointsCalculator.getStageFinishPoints(stage.stageType || 'flat', result.position, race.useLegacySprintPoints === true);
                         html += '<tr>';
                         html += `<td>${result.position}</td>`;
                         html += `<td>${rider ? rider.name : 'Ukendt'}</td>`;
@@ -1925,7 +1926,7 @@ const UI = {
                         html += `<td>${sprintPoints}p</td>`;
 
                         if (stage.finishOnMountain && stage.finishMountainCategory) {
-                            const mountainPoints = PointsCalculator.getMountainPoints(stage.finishMountainCategory, result.position);
+                            const mountainPoints = dnf ? 0 : PointsCalculator.getMountainPoints(stage.finishMountainCategory, result.position);
                             html += `<td>${mountainPoints}p</td>`;
                         }
 
@@ -3193,14 +3194,14 @@ const UI = {
         let raceSections = '';
         game.races.forEach(race => {
             const typeName = PointsCalculator.getRaceTypeName(race.type);
-            if (race.raceFormat === 'oneday') {
+            if (race.raceFormat === 'one-day') {
                 if (!race.results || race.results.length === 0) return;
                 let rows = '';
                 const sorted = [...race.results].sort((a, b) => a.position - b.position);
                 sorted.forEach(result => {
                     const rider = DataManager.getRiderById(result.riderId);
                     const team = rider ? DataManager.getTeamById(rider.teamId) : null;
-                    const points = PointsCalculator.getOneDayRacePoints(race.type, result.position);
+                    const points = DataManager.isNonFinisher(result) ? 0 : PointsCalculator.getOneDayRacePoints(race.type, result.position);
                     rows += `<tr><td>${result.position}</td><td>${rider ? rider.name : 'Ukendt'}</td><td>${team ? team.name : 'Ukendt'}</td><td>${result.time}</td><td>${points}</td></tr>`;
                 });
                 raceSections += `<div class="card"><h3>${race.name} <span class="race-type">${typeName}</span></h3>
@@ -3256,7 +3257,7 @@ const UI = {
                         sorted.forEach(result => {
                             const rider = DataManager.getRiderById(result.riderId);
                             const team = rider ? DataManager.getTeamById(rider.teamId) : null;
-                            const wtPoints = PointsCalculator.getStagePoints(race.type, result.position);
+                            const wtPoints = DataManager.isNonFinisher(result) ? 0 : PointsCalculator.getStagePoints(race.type, result.position);
                             stageRows += `<tr><td>${result.position}</td><td>${rider ? rider.name : 'Ukendt'}</td><td>${team ? team.name : 'Ukendt'}</td><td>${result.time}</td><td>${wtPoints}</td></tr>`;
                         });
                         raceSections += `<h4>Etape ${stage.stageNumber}: ${stage.name}</h4><table><tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>WT Point</th></tr>${stageRows}</table>`;
@@ -3389,7 +3390,7 @@ tr:last-child td { border-bottom: none; }
                 sorted.forEach(result => {
                     const rider = DataManager.getRiderById(result.riderId);
                     const team = rider ? DataManager.getTeamById(rider.teamId) : null;
-                    const points = PointsCalculator.getOneDayRacePoints(race.type, result.position);
+                    const points = DataManager.isNonFinisher(result) ? 0 : PointsCalculator.getOneDayRacePoints(race.type, result.position);
                     rows += `<tr><td>${result.position}</td><td>${rider ? rider.name : 'Ukendt'}</td><td>${team ? team.name : 'Ukendt'}</td><td>${result.time}</td><td>${points}</td></tr>`;
                 });
                 sections += `<div class="card"><h2>Resultater</h2>
@@ -3463,7 +3464,7 @@ tr:last-child td { border-bottom: none; }
                     sorted.forEach(result => {
                         const rider = DataManager.getRiderById(result.riderId);
                         const team = rider ? DataManager.getTeamById(rider.teamId) : null;
-                        const wtPoints = PointsCalculator.getStagePoints(race.type, result.position);
+                        const wtPoints = DataManager.isNonFinisher(result) ? 0 : PointsCalculator.getStagePoints(race.type, result.position);
                         stageRows += `<tr><td>${result.position}</td><td>${rider ? rider.name : 'Ukendt'}</td><td>${team ? team.name : 'Ukendt'}</td><td>${result.time}</td><td>${wtPoints}</td></tr>`;
                     });
                     sections += `<div class="card"><h3>Etape ${stage.stageNumber}: ${stage.name}</h3>

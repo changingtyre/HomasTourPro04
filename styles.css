@@ -84,6 +84,22 @@ header h1 {
     border-color: rgba(40, 167, 69, 0.8);
 }
 
+/* Skrivebeskyttet visning: skjul alt der redigerer data */
+body.readonly .backup-buttons,
+body.readonly [onclick*="UI.showAdd"],
+body.readonly [onclick*="UI.showCreate"],
+body.readonly [onclick*="UI.showEdit"],
+body.readonly [onclick*="UI.confirmDelete"],
+body.readonly [onclick*="UI.confirmClear"],
+body.readonly [onclick*="UI.finalize"],
+body.readonly [onclick*="UI.showMountainResults"],
+body.readonly [onclick*="UI.showSprintResults"],
+body.readonly [onclick*="UI.showYellowJerseyBonus"],
+body.readonly [onclick*="ShareHTML"],
+body.readonly [onclick*="CSV"] {
+    display: none !important;
+}
+
 main {
     padding: 30px;
 }
