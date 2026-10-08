@@ -1,5 +1,52 @@
 // UI Manager - handles all UI rendering
 const UI = {
+    // [landekode, dansk navn] — koden bruges til flag-billedet
+    countries: [
+        ['ar', 'Argentina'], ['au', 'Australien'], ['be', 'Belgien'], ['ba', 'Bosnien-Hercegovina'],
+        ['bg', 'Bulgarien'], ['ca', 'Canada'], ['cn', 'Kina'], ['co', 'Colombia'], ['dk', 'Danmark'],
+        ['ee', 'Estland'], ['fi', 'Finland'], ['fr', 'Frankrig'], ['gb', 'Storbritannien'],
+        ['hr', 'Kroatien'], ['ie', 'Irland'], ['it', 'Italien'], ['jp', 'Japan'], ['kz', 'Kasakhstan'],
+        ['lu', 'Luxembourg'], ['ma', 'Marokko'], ['nl', 'Holland'], ['no', 'Norge'], ['nz', 'New Zealand'],
+        ['om', 'Oman'], ['pl', 'Polen'], ['pt', 'Portugal'], ['ro', 'Rumænien'], ['sa', 'Saudi-Arabien'],
+        ['ch', 'Schweiz'], ['sk', 'Slovakiet'], ['si', 'Slovenien'], ['es', 'Spanien'], ['cz', 'Tjekkiet'],
+        ['tr', 'Tyrkiet'], ['de', 'Tyskland'], ['hu', 'Ungarn'], ['us', 'USA'],
+        ['ae', 'Forenede Arabiske Emirater'], ['za', 'Sydafrika'], ['se', 'Sverige'], ['at', 'Østrig']
+    ].sort((a, b) => a[1].localeCompare(b[1], 'da')),
+
+    countryOptionsHTML(selected) {
+        return '<option value="">Intet land</option>' + this.countries.map(([code, name]) =>
+            `<option value="${code}" ${code === selected ? 'selected' : ''}>${name}</option>`
+        ).join('');
+    },
+
+    // Flag som billede, da flag-emoji ikke vises på Windows
+    flagHTML(race) {
+        const country = this.countries.find(c => c[0] === race.country);
+        if (!country) return '';
+        return `<img src="https://flagcdn.com/w20/${country[0]}.png" width="20" alt="${country[1]}" title="${country[1]}" style="vertical-align: middle; margin-right: 6px;">`;
+    },
+
+    // Lille boks med løbskategori: Monument, Etapeløb eller World Cup
+    raceTypeBoxHTML(race) {
+        const kinds = {
+            'monument': ['Monument', 'monument'],
+            'tour-de-france': ['Etapeløb', 'stage'],
+            'giro': ['Etapeløb', 'stage'],
+            'vuelta': ['Etapeløb', 'stage'],
+            'worldcup-major': ['World Cup', 'worldcup'],
+            'worldcup-other': ['World Cup', 'worldcup']
+        };
+        const kind = kinds[race.type];
+        return kind ? `<span class="race-type-box race-type-${kind[1]}">${kind[0]}</span>` : '';
+    },
+
+    // Datoer skrives som "1. oktober 2004"
+    formatDate(value) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+        const date = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(value);
+        return date.toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' });
+    },
+
     // Generate time dropdown HTML (minutes 0-20, seconds 0-54 in steps of 6)
     timeDropdownHTML(position, existingTime) {
         const existingSec = existingTime ? DataManager.parseTime(existingTime) : 0;
@@ -76,7 +123,7 @@ const UI = {
                 html += `<div class="game-card" onclick="UI.selectGame('${game.id}')" style="position: relative; cursor: pointer;">`;
                 html += `<h3>${game.name}</h3>`;
                 html += `<p>${game.players.length} spillere | ${game.teams.length} hold | ${game.races.length} løb</p>`;
-                html += `<small>Oprettet: ${new Date(game.createdDate).toLocaleDateString('da-DK')}</small>`;
+                html += `<small>Oprettet: ${UI.formatDate(game.createdDate)}</small>`;
                 html += `<button class="btn btn-danger" onclick="event.stopPropagation(); UI.confirmDeleteGame('${game.id}', '${game.name.replace(/'/g, "\\'")}');" style="position: absolute; top: 10px; right: 10px; padding: 5px 10px; font-size: 0.8em;">🗑️ Slet</button>`;
                 html += '</div>';
             });
@@ -236,10 +283,10 @@ const UI = {
                     }
                 }
 
-                html += '<tr>';
-                html += `<td><a href="#" onclick="UI.viewRace('${race.id}'); return false;">${race.name}</a></td>`;
+                html += `<tr class="clickable-row" onclick="UI.viewRace('${race.id}')">`;
+                html += `<td>${UI.flagHTML(race)}${race.name}${UI.raceTypeBoxHTML(race)}</td>`;
                 html += `<td>${winner}</td>`;
-                html += `<td>${new Date(race.date || race.createdDate).toLocaleDateString('da-DK')}</td>`;
+                html += `<td>${UI.formatDate(race.date || race.createdDate)}</td>`;
                 html += '</tr>';
             });
             html += '</table>';
@@ -452,10 +499,10 @@ const UI = {
                 }
 
                 // Use race.date if available, otherwise createdDate
-                const displayDate = race.date ? new Date(race.date).toLocaleDateString('da-DK') : new Date(race.createdDate).toLocaleDateString('da-DK');
+                const displayDate = UI.formatDate(race.date || race.createdDate);
 
                 html += '<tr>';
-                html += `<td>${race.name}</td>`;
+                html += `<td>${UI.flagHTML(race)}${race.name}${UI.raceTypeBoxHTML(race)}</td>`;
                 html += `<td>${winner}</td>`;
                 html += `<td>${displayDate}</td>`;
                 html += `<td>`;
@@ -757,7 +804,7 @@ const UI = {
 
                         // Check GC position
                         if (race.generalClassification) {
-                            const gcPosition = race.generalClassification.findIndex(gc => gc.riderId === standing.riderId);
+                            const gcPosition = race.generalClassification.findIndex(gc => gc.riderId === standing.riderId && !gc.dnf);
                             if (gcPosition !== -1) {
                                 const position = gcPosition + 1;
                                 totalPositions += position;
@@ -1340,6 +1387,10 @@ const UI = {
                 <small style="color: #7f8c8d; display: block; margin-top: 5px;">Dette er løbets oprindelige dato, ikke spilledatoen</small>
             </div>
             <div class="form-group">
+                <label>Land (valgfrit)</label>
+                <select id="race-country">${UI.countryOptionsHTML('')}</select>
+            </div>
+            <div class="form-group">
                 <label>Løbstype</label>
                 <select id="race-type">
                     <option value="tour-de-france">Tour de France</option>
@@ -1380,6 +1431,7 @@ const UI = {
         try {
             const name = document.getElementById('race-name').value.trim();
             const date = document.getElementById('race-date').value;
+            const country = document.getElementById('race-country').value;
             const type = document.getElementById('race-type').value;
             const format = document.getElementById('race-format').value;
             const totalStages = format === 'stage' ? parseInt(document.getElementById('race-total-stages').value) || 0 : null;
@@ -1394,7 +1446,7 @@ const UI = {
                 return;
             }
 
-            const race = DataManager.createRace(name, type, format, date, totalStages);
+            const race = DataManager.createRace(name, type, format, date, totalStages, country);
             this.closeModal();
 
             // Small delay to ensure modal is fully closed before navigating
@@ -1447,6 +1499,10 @@ const UI = {
                 <small style="color: #7f8c8d; display: block; margin-top: 5px;">Dette er løbets oprindelige dato, ikke spilledatoen</small>
             </div>
             <div class="form-group">
+                <label>Land (valgfrit)</label>
+                <select id="edit-race-country">${UI.countryOptionsHTML(race.country)}</select>
+            </div>
+            <div class="form-group">
                 <label>Løbstype</label>
                 <select id="edit-race-type">
                     <option value="tour-de-france" ${race.type === 'tour-de-france' ? 'selected' : ''}>Tour de France (800 point)</option>
@@ -1468,6 +1524,7 @@ const UI = {
         const raceId = document.getElementById('edit-race-id').value;
         const newName = document.getElementById('edit-race-name').value.trim();
         const newDate = document.getElementById('edit-race-date').value;
+        const newCountry = document.getElementById('edit-race-country').value;
         const newType = document.getElementById('edit-race-type').value;
 
         if (!newName) {
@@ -1476,7 +1533,7 @@ const UI = {
         }
 
         // Update basic race info
-        if (!DataManager.editRace(raceId, newName, newType, newDate)) {
+        if (!DataManager.editRace(raceId, newName, newType, newDate, newCountry)) {
             alert('Fejl ved redigering af løb');
             return;
         }
@@ -1612,11 +1669,11 @@ const UI = {
     // Show one-day race
     showOneDayRace(container, race) {
         let html = '<div class="card">';
-        html += `<h2>${race.name}</h2>`;
+        html += `<h2>${UI.flagHTML(race)}${race.name}${UI.raceTypeBoxHTML(race)}</h2>`;
         html += `<p><strong>Type:</strong> ${PointsCalculator.getRaceTypeName(race.type)}</p>`;
         html += `<p><strong>Format:</strong> Endagsløb</p>`;
         if (race.date) {
-            html += `<p><strong>Dato:</strong> ${new Date(race.date).toLocaleDateString('da-DK')}</p>`;
+            html += `<p><strong>Dato:</strong> ${UI.formatDate(race.date)}</p>`;
         }
         if (race.notes) {
             html += `<div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px;">`;
@@ -1706,11 +1763,11 @@ const UI = {
     // Show stage race
     showStageRace(container, race) {
         let html = '<div class="card">';
-        html += `<h2>${race.name}</h2>`;
+        html += `<h2>${UI.flagHTML(race)}${race.name}${UI.raceTypeBoxHTML(race)}</h2>`;
         html += `<p><strong>Type:</strong> ${PointsCalculator.getRaceTypeName(race.type)}</p>`;
         html += `<p><strong>Format:</strong> Etapeløb</p>`;
         if (race.date) {
-            html += `<p><strong>Dato:</strong> ${new Date(race.date).toLocaleDateString('da-DK')}</p>`;
+            html += `<p><strong>Dato:</strong> ${UI.formatDate(race.date)}</p>`;
         }
 
         // Show race progress and status
@@ -1937,6 +1994,14 @@ const UI = {
         container.innerHTML = html;
     },
 
+    // Rytter der er udgået: grå række med status i placeringskolonnen
+    dnfRow(riderId, status, cells) {
+        const rider = DataManager.getRiderById(riderId);
+        const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+        const tds = cells.map(c => `<td>${c}</td>`).join('');
+        return `<tr style="color: #999;"><td>${status}</td><td>${rider ? rider.name : 'Ukendt'}</td><td>${team ? team.name : 'Ukendt'}</td>${tds}</tr>`;
+    },
+
     // Show general classification tab
     showGCTab(container, race) {
         let html = '<h3>Samlet Klassement</h3>';
@@ -1944,11 +2009,12 @@ const UI = {
         if (!race.generalClassification || race.generalClassification.length === 0) {
             html += '<p>Ingen data endnu.</p>';
         } else {
-            const leaderTime = race.generalClassification[0].totalTime;
+            const leaderTime = (race.generalClassification.find(gc => !gc.dnf) || {}).totalTime;
             html += '<p style="font-size: 0.9em; color: #666; font-style: italic;">Bonussekunder (4s/2s/1s for plads 1/2/3 på hver etape) er fratrukket den samlede tid.</p>';
             html += '<table>';
             html += '<tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>Bonus</th><th>WT Point</th></tr>';
             race.generalClassification.forEach(gc => {
+                if (gc.dnf) { html += UI.dnfRow(gc.riderId, gc.dnf, [gc.dnf, '−', 0]); return; }
                 const rider = DataManager.getRiderById(gc.riderId);
                 const team = rider ? DataManager.getTeamById(rider.teamId) : null;
                 const points = PointsCalculator.getGCPoints(race.type, gc.position);
@@ -1980,6 +2046,7 @@ const UI = {
             html += '<table>';
             html += '<tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Point</th><th>WT Point</th></tr>';
             race.pointsClassification.forEach(pc => {
+                if (pc.dnf) { html += UI.dnfRow(pc.riderId, pc.dnf, ['−', 0]); return; }
                 const rider = DataManager.getRiderById(pc.riderId);
                 const team = rider ? DataManager.getTeamById(rider.teamId) : null;
                 const wtPoints = PointsCalculator.getJerseyPoints(race.type, pc.position, 'points');
@@ -2007,6 +2074,7 @@ const UI = {
             html += '<table>';
             html += '<tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Point</th><th>WT Point</th></tr>';
             race.mountainClassification.forEach(mc => {
+                if (mc.dnf) { html += UI.dnfRow(mc.riderId, mc.dnf, ['−', 0]); return; }
                 const rider = DataManager.getRiderById(mc.riderId);
                 const team = rider ? DataManager.getTeamById(rider.teamId) : null;
                 const wtPoints = PointsCalculator.getJerseyPoints(race.type, mc.position, 'mountain');
@@ -3092,7 +3160,7 @@ const UI = {
                     });
 
                     if (race.generalClassification) {
-                        const gcPosition = race.generalClassification.findIndex(gc => gc.riderId === standing.riderId);
+                        const gcPosition = race.generalClassification.findIndex(gc => gc.riderId === standing.riderId && !gc.dnf);
                         if (gcPosition !== -1) {
                             const position = gcPosition + 1;
                             totalPositions += position;
@@ -3197,16 +3265,17 @@ const UI = {
                     const points = DataManager.isNonFinisher(result) ? 0 : PointsCalculator.getOneDayRacePoints(race.type, result.position);
                     rows += `<tr><td>${result.position}</td><td>${rider ? rider.name : 'Ukendt'}</td><td>${team ? team.name : 'Ukendt'}</td><td>${result.time}</td><td>${points}</td></tr>`;
                 });
-                raceSections += `<div class="card"><h3>${race.name} <span class="race-type">${typeName}</span></h3>
+                raceSections += `<div class="card"><h3>${UI.flagHTML(race)}${race.name} <span class="race-type">${typeName}</span></h3>
                     <table><tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>WT Point</th></tr>${rows}</table></div>`;
             } else if (race.raceFormat === 'stage') {
-                raceSections += `<div class="card"><h3>${race.name} <span class="race-type">${typeName}</span></h3>`;
+                raceSections += `<div class="card"><h3>${UI.flagHTML(race)}${race.name} <span class="race-type">${typeName}</span></h3>`;
 
                 // GC
                 if (race.generalClassification && race.generalClassification.length > 0) {
-                    const leaderTime = race.generalClassification[0].totalTime;
+                    const leaderTime = (race.generalClassification.find(gc => !gc.dnf) || {}).totalTime;
                     let gcRows = '';
                     race.generalClassification.forEach(gc => {
+                        if (gc.dnf) { gcRows += UI.dnfRow(gc.riderId, gc.dnf, [gc.dnf, 0]); return; }
                         const rider = DataManager.getRiderById(gc.riderId);
                         const team = rider ? DataManager.getTeamById(rider.teamId) : null;
                         const points = PointsCalculator.getGCPoints(race.type, gc.position);
@@ -3221,6 +3290,7 @@ const UI = {
                 if (race.pointsClassification && race.pointsClassification.length > 0) {
                     let pcRows = '';
                     race.pointsClassification.forEach(pc => {
+                        if (pc.dnf) { pcRows += UI.dnfRow(pc.riderId, pc.dnf, ['−', 0]); return; }
                         const rider = DataManager.getRiderById(pc.riderId);
                         const team = rider ? DataManager.getTeamById(rider.teamId) : null;
                         const wtPoints = PointsCalculator.getJerseyPoints(race.type, pc.position, 'points');
@@ -3233,6 +3303,7 @@ const UI = {
                 if (race.mountainClassification && race.mountainClassification.length > 0) {
                     let mcRows = '';
                     race.mountainClassification.forEach(mc => {
+                        if (mc.dnf) { mcRows += UI.dnfRow(mc.riderId, mc.dnf, ['−', 0]); return; }
                         const rider = DataManager.getRiderById(mc.riderId);
                         const team = rider ? DataManager.getTeamById(rider.teamId) : null;
                         const wtPoints = PointsCalculator.getJerseyPoints(race.type, mc.position, 'mountain');
@@ -3270,7 +3341,7 @@ const UI = {
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, 'Times New Roman', serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     padding: 12px;
@@ -3392,9 +3463,10 @@ tr:last-child td { border-bottom: none; }
         } else if (race.raceFormat === 'stage') {
             // GC
             if (race.generalClassification && race.generalClassification.length > 0) {
-                const leaderTime = race.generalClassification[0].totalTime;
+                const leaderTime = (race.generalClassification.find(gc => !gc.dnf) || {}).totalTime;
                 let gcRows = '';
                 race.generalClassification.forEach(gc => {
+                    if (gc.dnf) { gcRows += UI.dnfRow(gc.riderId, gc.dnf, [gc.dnf, 0]); return; }
                     const rider = DataManager.getRiderById(gc.riderId);
                     const team = rider ? DataManager.getTeamById(rider.teamId) : null;
                     const points = PointsCalculator.getGCPoints(race.type, gc.position);
@@ -3410,6 +3482,7 @@ tr:last-child td { border-bottom: none; }
             if (race.pointsClassification && race.pointsClassification.length > 0) {
                 let pcRows = '';
                 race.pointsClassification.forEach(pc => {
+                    if (pc.dnf) { pcRows += UI.dnfRow(pc.riderId, pc.dnf, ['−', 0]); return; }
                     const rider = DataManager.getRiderById(pc.riderId);
                     const team = rider ? DataManager.getTeamById(rider.teamId) : null;
                     const wtPoints = PointsCalculator.getJerseyPoints(race.type, pc.position, 'points');
@@ -3423,6 +3496,7 @@ tr:last-child td { border-bottom: none; }
             if (race.mountainClassification && race.mountainClassification.length > 0) {
                 let mcRows = '';
                 race.mountainClassification.forEach(mc => {
+                    if (mc.dnf) { mcRows += UI.dnfRow(mc.riderId, mc.dnf, ['−', 0]); return; }
                     const rider = DataManager.getRiderById(mc.riderId);
                     const team = rider ? DataManager.getTeamById(rider.teamId) : null;
                     const wtPoints = PointsCalculator.getJerseyPoints(race.type, mc.position, 'mountain');
@@ -3475,7 +3549,7 @@ tr:last-child td { border-bottom: none; }
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, 'Times New Roman', serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     padding: 12px;
@@ -3528,7 +3602,7 @@ tr:last-child td { border-bottom: none; }
 <body>
 <div class="container">
     <div class="header">
-        <h1>${race.name}</h1>
+        <h1>${UI.flagHTML(race)}${race.name}</h1>
         <div class="sub">${typeName}${race.raceFormat === 'stage' ? ' — Etapeløb' : ' — Endagsløb'}</div>
         <div class="date">Opdateret ${dateStr}</div>
     </div>
@@ -3700,9 +3774,9 @@ tr:last-child td { border-bottom: none; }
             html += '<h3>Løb</h3>';
             html += '<ul style="list-style: none; padding: 0;">';
             matchingRaces.forEach(race => {
-                const date = race.date ? new Date(race.date).toLocaleDateString('da-DK') : '';
+                const date = race.date ? UI.formatDate(race.date) : '';
                 html += `<li style="padding: 10px; border-bottom: 1px solid #ecf0f1; cursor: pointer;" onclick="UI.closeModal(); UI.viewRace('${race.id}');">`;
-                html += `<strong>${race.name}</strong><br>`;
+                html += `<strong>${UI.flagHTML(race)}${race.name}</strong><br>`;
                 html += `<small style="color: #7f8c8d;">${PointsCalculator.getRaceTypeName(race.type)}${date ? ' - ' + date : ''}</small>`;
                 html += `</li>`;
             });

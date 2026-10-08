@@ -17,7 +17,7 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, 'Times New Roman', serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     padding: 20px;
@@ -230,6 +230,14 @@ table tr:hover {
     background: #f8f9fa;
 }
 
+.clickable-row {
+    cursor: pointer;
+}
+
+.clickable-row:hover {
+    background: #f1ece0;
+}
+
 /* Grid layouts */
 .grid {
     display: grid;
@@ -302,6 +310,28 @@ table tr:hover {
 }
 
 /* Badges */
+button, input, select, textarea {
+    font-family: inherit;
+}
+
+.race-type-box {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 8px;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    font-weight: normal;
+    font-variant: small-caps;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.race-type-monument { color: #8b1a1a; }
+.race-type-stage { color: #8a6d1f; }
+.race-type-worldcup { color: #2e5e3e; }
+
 .badge {
     display: inline-block;
     padding: 4px 10px;

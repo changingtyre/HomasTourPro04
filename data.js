@@ -347,7 +347,7 @@ const DataManager = {
     },
 
     // Create race
-    createRace(raceName, raceType, raceFormat, raceDate = null, totalStages = null) {
+    createRace(raceName, raceType, raceFormat, raceDate = null, totalStages = null, country = null) {
         console.log('DataManager.createRace called with:', raceName, raceType, raceFormat, raceDate, totalStages);
         const data = this.getData();
         console.log('Current data:', data);
@@ -372,6 +372,7 @@ const DataManager = {
             type: raceType, // 'tour-de-france', 'giro', 'vuelta', 'monument', 'worldcup-major', 'worldcup-other'
             raceFormat: raceFormat, // 'one-day' or 'stage'
             date: raceDate || null, // Original race date (optional)
+            country: country || null, // ISO-landekode til flag (valgfri)
             createdDate: new Date().toISOString(),
             stages: raceFormat === 'stage' ? [] : null,
             results: raceFormat === 'one-day' ? [] : null,
@@ -415,7 +416,7 @@ const DataManager = {
     },
 
     // Edit race
-    editRace(raceId, newName, newType, newDate = null) {
+    editRace(raceId, newName, newType, newDate = null, newCountry = null) {
         const data = this.getData();
         if (!data.currentGameId) return false;
 
@@ -428,6 +429,7 @@ const DataManager = {
         race.name = newName;
         race.type = newType;
         race.date = newDate || null;
+        race.country = newCountry || null;
 
         this.saveData(data);
 
@@ -951,14 +953,16 @@ const DataManager = {
             });
         });
 
-        // Ryttere der er udgået fjernes fra alle samlede stillinger
-        const nonFinishers = new Set();
+        // Ryttere der er udgået fjernes fra placeringerne og vises nederst med deres status
+        const nonFinishers = new Map();
         race.stages.forEach(stage => {
             stage.results.forEach(result => {
-                if (this.isNonFinisher(result)) nonFinishers.add(result.riderId);
+                if (this.isNonFinisher(result) && !nonFinishers.has(result.riderId)) {
+                    nonFinishers.set(result.riderId, result.status || result.time);
+                }
             });
         });
-        nonFinishers.forEach(riderId => {
+        nonFinishers.forEach((status, riderId) => {
             gcMap.delete(riderId);
             bonusMap.delete(riderId);
         });
@@ -970,6 +974,10 @@ const DataManager = {
             })
             .sort((a, b) => a.totalTime - b.totalTime)
             .map((item, index) => ({ ...item, position: index + 1 }));
+
+        nonFinishers.forEach((status, riderId) => {
+            race.generalClassification.push({ riderId, dnf: status, position: null, totalTime: null, bonusSeconds: 0 });
+        });
 
         // Calculate points classification (sprint points)
         const pointsMap = new Map();
@@ -999,12 +1007,16 @@ const DataManager = {
             }
         });
 
-        nonFinishers.forEach(riderId => pointsMap.delete(riderId));
+        nonFinishers.forEach((status, riderId) => pointsMap.delete(riderId));
 
         race.pointsClassification = Array.from(pointsMap.entries())
             .map(([riderId, points]) => ({ riderId, points }))
             .sort((a, b) => b.points - a.points)
             .map((item, index) => ({ ...item, position: index + 1 }));
+
+        nonFinishers.forEach((status, riderId) => {
+            race.pointsClassification.push({ riderId, dnf: status, position: null, points: 0 });
+        });
 
         // Calculate mountain classification (mountain points)
         const mountainMap = new Map();
@@ -1032,12 +1044,16 @@ const DataManager = {
             }
         });
 
-        nonFinishers.forEach(riderId => mountainMap.delete(riderId));
+        nonFinishers.forEach((status, riderId) => mountainMap.delete(riderId));
 
         race.mountainClassification = Array.from(mountainMap.entries())
             .map(([riderId, points]) => ({ riderId, points }))
             .sort((a, b) => b.points - a.points)
             .map((item, index) => ({ ...item, position: index + 1 }));
+
+        nonFinishers.forEach((status, riderId) => {
+            race.mountainClassification.push({ riderId, dnf: status, position: null, points: 0 });
+        });
 
         console.log('Points classification:', race.pointsClassification.length, 'riders');
         console.log('Mountain classification:', race.mountainClassification.length, 'riders');
@@ -1232,18 +1248,21 @@ const DataManager = {
                 // Stage race - general classification points (only if race is complete)
                 if (raceComplete) {
                     race.generalClassification.forEach(gc => {
+                        if (gc.dnf) return;
                         const points = PointsCalculator.getGCPoints(race.type, gc.position);
                         this.addPointsToRider(game, gc.riderId, points, gc.position === 1);
                     });
 
                     // Points classification (only if race is complete)
                     race.pointsClassification.forEach(pc => {
+                        if (pc.dnf) return;
                         const points = PointsCalculator.getJerseyPoints(race.type, pc.position, 'points');
                         this.addPointsToRider(game, pc.riderId, points, false);
                     });
 
                     // Mountain classification (only if race is complete)
                     race.mountainClassification.forEach(mc => {
+                        if (mc.dnf) return;
                         const points = PointsCalculator.getJerseyPoints(race.type, mc.position, 'mountain');
                         this.addPointsToRider(game, mc.riderId, points, false);
                     });
