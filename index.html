@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homas Tour Pro</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>🚴 Homas Tour Pro</h1>
+            <div class="header-right">
+                <div id="current-game-info"></div>
+                <div class="backup-buttons">
+                    <button class="btn-icon" onclick="UI.exportData()" title="Eksporter backup">💾 Backup</button>
+                    <button class="btn-icon" onclick="UI.showImportDialog()" title="Importer backup">📥 Gendan</button>
+                    <button class="btn-icon" id="auto-save-btn" onclick="UI.toggleAutoSave()" title="Auto-gem til fil">📁 Auto-gem</button>
+                </div>
+            </div>
+        </header>
+
+        <main id="main-content">
+            <!-- Content will be dynamically loaded here -->
+        </main>
+
+        <!-- Hidden file input for import -->
+        <input type="file" id="import-file-input" accept=".json" style="display: none;" onchange="UI.handleImport(event)">
+    </div>
+
+    <script src="data.js"></script>
+    <script src="points.js"></script>
+    <script src="ui.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
