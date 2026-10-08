@@ -1,5 +1,48 @@
 // UI Manager - handles all UI rendering
 const UI = {
+    // Generate time dropdown HTML (minutes 0-20, seconds 0-54 in steps of 6)
+    timeDropdownHTML(position, existingTime) {
+        const existingSec = existingTime ? DataManager.parseTime(existingTime) : 0;
+        const selMin = Math.floor(existingSec / 60);
+        const selSec = existingSec % 60;
+        const minOptions = Array.from({length: 21}, (_, i) =>
+            `<option value="${i}" ${existingTime && i === selMin ? 'selected' : ''}>${i}</option>`
+        ).join('');
+        const secOptions = [0,6,12,18,24,30,36,42,48,54].map(s =>
+            `<option value="${s}" ${existingTime && s === selSec ? 'selected' : ''}>${String(s).padStart(2,'0')}</option>`
+        ).join('');
+        return `<select id="time-min-${position}" style="width: 55px; padding: 5px;">${minOptions}</select>m
+                <select id="time-sec-${position}" style="width: 55px; padding: 5px;">${secOptions}</select>s`;
+    },
+
+    // Read time from dropdowns as formatted string
+    readTimeFromDropdowns(position) {
+        const minSelect = document.getElementById(`time-min-${position}`);
+        const secSelect = document.getElementById(`time-sec-${position}`);
+        if (!minSelect || !secSelect) return null;
+        const min = parseInt(minSelect.value);
+        const sec = parseInt(secSelect.value);
+        if (min === 0 && sec === 0) return '0:00';
+        return `${min}:${String(sec).padStart(2, '0')}`;
+    },
+
+    // Generate rider options grouped by team using <optgroup>
+    getRiderOptionsHTML() {
+        const game = DataManager.getCurrentGame();
+        if (!game) return '<option value="">-- Vælg rytter --</option>';
+        let html = '<option value="">-- Vælg rytter --</option>';
+        game.teams.forEach(team => {
+            if (team.riders.length > 0) {
+                html += `<optgroup label="${team.name}" style="color: ${team.color || '#333'}; font-weight: bold;">`;
+                team.riders.forEach(rider => {
+                    html += `<option value="${rider.id}" style="color: #000; font-weight: normal;">${rider.name}</option>`;
+                });
+                html += '</optgroup>';
+            }
+        });
+        return html;
+    },
+
     mainContent: null,
     currentGameInfo: null,
     sortState: {
@@ -443,7 +486,10 @@ const UI = {
         let html = '<div class="card">';
         html += '<div class="flex-between">';
         html += '<h2>Rytter Stilling</h2>';
+        html += '<div style="display: flex; gap: 8px;">';
+        html += '<button class="btn btn-primary" onclick="UI.exportShareHTML()">📤 Del Stillinger</button>';
         html += '<button class="btn btn-success" onclick="UI.exportRiderStandingsCSV()">📥 Eksporter CSV</button>';
+        html += '</div>';
         html += '</div>';
 
         // Filters
@@ -1510,6 +1556,36 @@ const UI = {
         }
     },
 
+    // Show edit stage notes
+    showEditStageNotes(raceId, stageId) {
+        const race = DataManager.getRaceById(raceId);
+        if (!race) return;
+        const stage = race.stages.find(s => s.id === stageId);
+        if (!stage) return;
+
+        this.showModal(`
+            <h2>Rediger Noter - ${stage.name}</h2>
+            <div class="form-group">
+                <label>Noter (valgfrit)</label>
+                <textarea id="stage-notes" rows="6" style="width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 4px;">${stage.notes || ''}</textarea>
+                <small style="color: #7f8c8d; display: block; margin-top: 5px;">Tilføj noter om vejr, særlige hændelser, strategi osv.</small>
+            </div>
+            <button class="btn btn-success" onclick="UI.saveStageNotes('${raceId}', '${stageId}')">Gem</button>
+            <button class="btn btn-secondary" onclick="UI.closeModal()">Annuller</button>
+        `);
+    },
+
+    // Save stage notes
+    saveStageNotes(raceId, stageId) {
+        const notes = document.getElementById('stage-notes').value.trim();
+        if (DataManager.updateStageNotes(raceId, stageId, notes)) {
+            this.closeModal();
+            this.viewRace(raceId);
+        } else {
+            alert('Fejl ved gem af noter');
+        }
+    },
+
     // View race details
     viewRace(raceId) {
         try {
@@ -1558,6 +1634,8 @@ const UI = {
         html += `<button class="btn btn-primary" onclick="UI.showAddOneDayResult('${race.id}')">Registrer Resultat</button>`;
         html += `<button class="btn btn-secondary" onclick="UI.showEditRaceNotes('${race.id}')">📝 ${race.notes ? 'Rediger' : 'Tilføj'} Noter</button>`;
         if (race.results.length > 0) {
+            html += `<button class="btn btn-primary" onclick="UI.exportRaceShareHTML('${race.id}')">📤 Del Resultater</button>`;
+            html += `<button class="btn btn-success" onclick="UI.finalizeOneDayRace('${race.id}')">Afslut endagsløb</button>`;
             html += `<button class="btn btn-danger" onclick="UI.confirmClearOneDayResults('${race.id}', '${race.name.replace(/'/g, "\\'")}')">Ryd Alle Resultater</button>`;
         }
         html += '</div>';
@@ -1616,7 +1694,7 @@ const UI = {
             sortedResults.forEach(result => {
                 const rider = DataManager.getRiderById(result.riderId);
                 const team = rider ? DataManager.getTeamById(rider.teamId) : null;
-                const points = PointsCalculator.getOneDayRacePoints(race.type, result.position);
+                const points = DataManager.isNonFinisher(result) ? 0 : PointsCalculator.getOneDayRacePoints(race.type, result.position);
                 html += '<tr>';
                 html += `<td>${result.position}</td>`;
                 html += `<td>${rider ? rider.name : 'Ukendt'}</td>`;
@@ -1671,8 +1749,12 @@ const UI = {
         }
         html += '<div class="flex gap-10 mt-20" style="flex-wrap: wrap;">';
         html += `<button class="btn btn-primary" onclick="UI.showAddStage('${race.id}')">Tilføj Etape</button>`;
+        html += `<button class="btn btn-primary" onclick="UI.exportRaceShareHTML('${race.id}')">📤 Del Resultater</button>`;
         html += `<button class="btn btn-secondary" onclick="UI.showYellowJerseyBonus('${race.id}')">Førertrøje Bonus</button>`;
         html += `<button class="btn btn-secondary" onclick="UI.showEditRaceNotes('${race.id}')">📝 ${race.notes ? 'Rediger' : 'Tilføj'} Noter</button>`;
+        if (!isComplete && race.stages.length > 0) {
+            html += `<button class="btn btn-success" onclick="UI.finalizeStageRace('${race.id}')">Afslut etapeløb</button>`;
+        }
         html += '</div>';
         html += '</div>';
 
@@ -1758,12 +1840,20 @@ const UI = {
                 html += `<button class="btn btn-secondary" onclick="UI.showAddSprint('${race.id}', '${stage.id}')">➕ Spurt</button>`;
                 html += `<button class="btn btn-primary" onclick="UI.showAddStageResult('${race.id}', '${stage.id}')">Registrer Resultat</button>`;
                 if (stage.results && stage.results.length > 0) {
+                    html += `<button class="btn btn-success" onclick="UI.finalizeStage('${race.id}')">Afslut etape</button>`;
                     html += `<button class="btn btn-danger" onclick="UI.confirmClearStageResults('${race.id}', '${stage.id}', '${stage.name.replace(/'/g, "\\'")}')">Ryd Resultater</button>`;
                 }
+                html += `<button class="btn btn-secondary" onclick="UI.showEditStageNotes('${race.id}', '${stage.id}')">📝 ${stage.notes ? 'Rediger' : 'Tilføj'} Noter</button>`;
                 html += `<button class="btn btn-secondary" onclick="UI.showEditStage('${race.id}', '${stage.id}')">✏️</button>`;
                 html += `<button class="btn btn-danger" onclick="UI.confirmDeleteStage('${race.id}', '${stage.id}', '${stage.name.replace(/'/g, "\\'")}')">🗑️</button>`;
                 html += `</div>`;
                 html += `</div>`;
+
+                if (stage.notes) {
+                    html += `<div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px;">`;
+                    html += `<p style="margin: 0; white-space: pre-wrap;"><strong>📝 Noter:</strong><br>${stage.notes}</p>`;
+                    html += `</div>`;
+                }
 
                 // Show mountains
                 if (stage.mountains && stage.mountains.length > 0) {
@@ -1817,23 +1907,26 @@ const UI = {
 
                     // Add mountain column if stage finishes on mountain
                     if (stage.finishOnMountain && stage.finishMountainCategory) {
-                        html += '<tr><th>Pos.</th><th>Rytter</th><th>Tid</th><th>Sprint P.</th><th>Bjerg P.</th><th>Etape WT P.</th></tr>';
+                        html += '<tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>Sprint P.</th><th>Bjerg P.</th><th>Etape WT P.</th></tr>';
                     } else {
-                        html += '<tr><th>Pos.</th><th>Rytter</th><th>Tid</th><th>Sprint P.</th><th>Etape WT P.</th></tr>';
+                        html += '<tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>Sprint P.</th><th>Etape WT P.</th></tr>';
                     }
 
                     sortedResults.forEach(result => {
                         const rider = DataManager.getRiderById(result.riderId);
-                        const wtPoints = PointsCalculator.getStagePoints(race.type, result.position);
-                        const sprintPoints = PointsCalculator.getStageFinishPoints(stage.stageType || 'flat', result.position);
+                        const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                        const dnf = DataManager.isNonFinisher(result);
+                        const wtPoints = dnf ? 0 : PointsCalculator.getStagePoints(race.type, result.position);
+                        const sprintPoints = dnf ? 0 : PointsCalculator.getStageFinishPoints(stage.stageType || 'flat', result.position, race.useLegacySprintPoints === true);
                         html += '<tr>';
                         html += `<td>${result.position}</td>`;
                         html += `<td>${rider ? rider.name : 'Ukendt'}</td>`;
+                        html += `<td>${team ? team.name : 'Ukendt'}</td>`;
                         html += `<td>${result.time}</td>`;
                         html += `<td>${sprintPoints}p</td>`;
 
                         if (stage.finishOnMountain && stage.finishMountainCategory) {
-                            const mountainPoints = PointsCalculator.getMountainPoints(stage.finishMountainCategory, result.position);
+                            const mountainPoints = dnf ? 0 : PointsCalculator.getMountainPoints(stage.finishMountainCategory, result.position);
                             html += `<td>${mountainPoints}p</td>`;
                         }
 
@@ -1858,17 +1951,23 @@ const UI = {
         if (!race.generalClassification || race.generalClassification.length === 0) {
             html += '<p>Ingen data endnu.</p>';
         } else {
+            const leaderTime = race.generalClassification[0].totalTime;
+            html += '<p style="font-size: 0.9em; color: #666; font-style: italic;">Bonussekunder (4s/2s/1s for plads 1/2/3 på hver etape) er fratrukket den samlede tid.</p>';
             html += '<table>';
-            html += '<tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Samlet Tid</th><th>WT Point</th></tr>';
+            html += '<tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>Bonus</th><th>WT Point</th></tr>';
             race.generalClassification.forEach(gc => {
                 const rider = DataManager.getRiderById(gc.riderId);
                 const team = rider ? DataManager.getTeamById(rider.teamId) : null;
                 const points = PointsCalculator.getGCPoints(race.type, gc.position);
+                const timeDiff = gc.totalTime - leaderTime;
+                const timeDisplay = gc.position === 1 ? '0:00' : '+' + DataManager.formatTime(timeDiff);
+                const bonusDisplay = gc.bonusSeconds > 0 ? `−${gc.bonusSeconds}s` : '−';
                 html += '<tr>';
                 html += `<td>${gc.position}</td>`;
                 html += `<td>${rider ? rider.name : 'Ukendt'}${gc.position === 1 ? ' <span class="badge badge-yellow">Førertrøje</span>' : ''}</td>`;
                 html += `<td>${team ? team.name : 'Ukendt'}</td>`;
-                html += `<td>${DataManager.formatTime(gc.totalTime)}</td>`;
+                html += `<td>${timeDisplay}</td>`;
+                html += `<td>${bonusDisplay}</td>`;
                 html += `<td>${points}</td>`;
                 html += '</tr>';
             });
@@ -1886,13 +1985,15 @@ const UI = {
             html += '<p>Ingen data endnu.</p>';
         } else {
             html += '<table>';
-            html += '<tr><th>Pos.</th><th>Rytter</th><th>Point</th><th>WT Point</th></tr>';
+            html += '<tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Point</th><th>WT Point</th></tr>';
             race.pointsClassification.forEach(pc => {
                 const rider = DataManager.getRiderById(pc.riderId);
+                const team = rider ? DataManager.getTeamById(rider.teamId) : null;
                 const wtPoints = PointsCalculator.getJerseyPoints(race.type, pc.position, 'points');
                 html += '<tr>';
                 html += `<td>${pc.position}</td>`;
                 html += `<td>${rider ? rider.name : 'Ukendt'}${pc.position === 1 ? ' <span class="badge badge-green">Grøn Trøje</span>' : ''}</td>`;
+                html += `<td>${team ? team.name : 'Ukendt'}</td>`;
                 html += `<td>${pc.points}</td>`;
                 html += `<td>${wtPoints}</td>`;
                 html += '</tr>';
@@ -1911,13 +2012,15 @@ const UI = {
             html += '<p>Ingen data endnu.</p>';
         } else {
             html += '<table>';
-            html += '<tr><th>Pos.</th><th>Rytter</th><th>Point</th><th>WT Point</th></tr>';
+            html += '<tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Point</th><th>WT Point</th></tr>';
             race.mountainClassification.forEach(mc => {
                 const rider = DataManager.getRiderById(mc.riderId);
+                const team = rider ? DataManager.getTeamById(rider.teamId) : null;
                 const wtPoints = PointsCalculator.getJerseyPoints(race.type, mc.position, 'mountain');
                 html += '<tr>';
                 html += `<td>${mc.position}</td>`;
                 html += `<td>${rider ? rider.name : 'Ukendt'}${mc.position === 1 ? ' <span class="badge badge-polka">Prikkede Trøje</span>' : ''}</td>`;
+                html += `<td>${team ? team.name : 'Ukendt'}</td>`;
                 html += `<td>${mc.points}</td>`;
                 html += `<td>${wtPoints}</td>`;
                 html += '</tr>';
@@ -1936,17 +2039,21 @@ const UI = {
         if (!race.teamClassification || race.teamClassification.length === 0) {
             html += '<p>Ingen data endnu.</p>';
         } else {
-            html += '<table>';
-            html += '<tr><th>Pos.</th><th>Hold</th><th>Spiller</th><th>Samlet Tid</th></tr>';
             // Sort by position to ensure correct order (position 1 first)
-            race.teamClassification.sort((a, b) => a.position - b.position).forEach(tc => {
+            const sortedTeams = race.teamClassification.sort((a, b) => a.position - b.position);
+            const teamLeaderTime = sortedTeams[0].totalTime;
+            html += '<table>';
+            html += '<tr><th>Pos.</th><th>Hold</th><th>Spiller</th><th>Tid</th></tr>';
+            sortedTeams.forEach(tc => {
                 const team = DataManager.getTeamById(tc.teamId);
                 const player = team ? DataManager.getPlayerById(team.playerId) : null;
+                const timeDiff = tc.totalTime - teamLeaderTime;
+                const timeDisplay = tc.position === 1 ? '0:00' : '+' + DataManager.formatTime(timeDiff);
                 html += '<tr>';
                 html += `<td>${tc.position}</td>`;
                 html += `<td>${team ? team.name : 'Ukendt'}${tc.position === 1 ? ' <span class="badge badge-yellow">🏆</span>' : ''}</td>`;
                 html += `<td>${player ? player.name : 'Ukendt'}</td>`;
-                html += `<td>${DataManager.formatTime(tc.totalTime)}</td>`;
+                html += `<td>${timeDisplay}</td>`;
                 html += '</tr>';
             });
             html += '</table>';
@@ -2105,10 +2212,7 @@ const UI = {
         const race = DataManager.getRaceById(raceId);
 
         // Create rider options for dropdowns
-        let riderOptions = '<option value="">-- Vælg rytter --</option>';
-        riders.forEach(rider => {
-            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
-        });
+        const riderOptions = this.getRiderOptionsHTML();
 
         // Build map of existing results by position
         const resultsByPosition = {};
@@ -2118,7 +2222,7 @@ const UI = {
 
         // Determine how many rows to show initially
         const maxResults = Math.max(...Object.keys(resultsByPosition).map(Number), 0);
-        const initialRows = Math.max(15, maxResults + 3);
+        const initialRows = Math.max(25, maxResults + 3);
 
         // Create rows for positions
         let tableRows = '';
@@ -2140,12 +2244,8 @@ const UI = {
                             <option value="DSQ" ${existingResult && existingResult.status === 'DSQ' ? 'selected' : ''}>DSQ</option>
                         </select>
                     </td>
-                    <td>
-                        <input type="text"
-                               id="time-${position}"
-                               value="${existingResult ? existingResult.time : ''}"
-                               placeholder="4:23:15"
-                               style="width: 100%; padding: 5px;">
+                    <td style="white-space: nowrap;">
+                        ${this.timeDropdownHTML(position, existingResult ? existingResult.time : null)}
                     </td>
                 </tr>
             `;
@@ -2153,14 +2253,14 @@ const UI = {
 
         this.createModal('Registrer Resultater', `
             <p style="margin-bottom: 15px;">Vælg rytter og tid for hver placering. Tom rytter = ingen på den placering.</p>
-            <div style="max-height: 400px; overflow-y: auto;">
+            <div style="max-height: 60vh; overflow-y: auto;">
                 <table style="width: 100%;" id="results-table">
                     <thead>
-                        <tr style="position: sticky; top: 0; background: white;">
-                            <th style="text-align: center; padding: 8px; width: 60px;">Plac.</th>
-                            <th style="text-align: left; padding: 8px;">Rytter</th>
-                            <th style="text-align: left; padding: 8px; width: 100px;">Status</th>
-                            <th style="text-align: left; padding: 8px; width: 120px;">Tid</th>
+                        <tr style="position: sticky; top: 0; background: white; z-index: 1;">
+                            <th style="text-align: center; padding: 8px; width: 50px;">Plac.</th>
+                            <th style="text-align: left; padding: 8px; min-width: 250px;">Rytter</th>
+                            <th style="text-align: left; padding: 8px; width: 90px;">Status</th>
+                            <th style="text-align: left; padding: 8px; width: 150px;">Tid</th>
                         </tr>
                     </thead>
                     <tbody id="results-tbody">
@@ -2233,10 +2333,7 @@ const UI = {
         if (!tbody) return;
 
         // Create rider options for dropdowns
-        let riderOptions = '<option value="">-- Vælg rytter --</option>';
-        riders.forEach(rider => {
-            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
-        });
+        const riderOptions = this.getRiderOptionsHTML();
 
         // Add 5 more rows
         for (let i = 1; i <= 5; i++) {
@@ -2257,11 +2354,8 @@ const UI = {
                         <option value="DSQ">DSQ</option>
                     </select>
                 </td>
-                <td>
-                    <input type="text"
-                           id="time-${position}"
-                           placeholder="4:23:15"
-                           style="width: 100%; padding: 5px;">
+                <td style="white-space: nowrap;">
+                    ${UI.timeDropdownHTML(position, null)}
                 </td>
             `;
             tbody.appendChild(row);
@@ -2283,16 +2377,16 @@ const UI = {
         const tbody = document.getElementById('results-tbody');
         if (!tbody) return;
 
+        const race = DataManager.getRaceById(raceId);
+        const useLegacySprintPoints = race && race.useLegacySprintPoints === true;
+
         // Create rider options for dropdowns
-        let riderOptions = '<option value="">-- Vælg rytter --</option>';
-        riders.forEach(rider => {
-            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
-        });
+        const riderOptions = this.getRiderOptionsHTML();
 
         // Add 5 more rows
         for (let i = 1; i <= 5; i++) {
             const position = currentRows + i;
-            const finishPoints = PointsCalculator.getStageFinishPoints(stageType, position);
+            const finishPoints = PointsCalculator.getStageFinishPoints(stageType, position, useLegacySprintPoints);
             const row = document.createElement('tr');
             row.id = `stage-result-row-${position}`;
             row.innerHTML = `
@@ -2303,10 +2397,14 @@ const UI = {
                     </select>
                 </td>
                 <td>
-                    <input type="text"
-                           id="time-${position}"
-                           placeholder="4:23:15"
-                           style="width: 100%; padding: 5px;">
+                    <select id="status-${position}" style="width: 100%; padding: 5px;">
+                        <option value="">Normal</option>
+                        <option value="DNF">DNF</option>
+                        <option value="DSQ">DSQ</option>
+                    </select>
+                </td>
+                <td style="white-space: nowrap;">
+                    ${UI.timeDropdownHTML(position, null)}
                 </td>
                 <td style="text-align: center;">${finishPoints}p</td>
             `;
@@ -2328,19 +2426,18 @@ const UI = {
         const race = DataManager.getRaceById(raceId);
         const riders = DataManager.getAllRiders();
         const results = [];
-        const errors = [];
 
         // Loop through all possible positions (check up to 200 positions to handle dynamically added rows)
         for (let position = 1; position <= 200; position++) {
             const riderSelect = document.getElementById(`rider-${position}`);
-            const timeInput = document.getElementById(`time-${position}`);
+            const minSelect = document.getElementById(`time-min-${position}`);
             const statusSelect = document.getElementById(`status-${position}`);
 
             // Stop if we reach a position that doesn't exist
-            if (!riderSelect || !timeInput || !statusSelect) break;
+            if (!riderSelect || !minSelect || !statusSelect) break;
 
             const riderId = riderSelect.value;
-            const time = timeInput.value.trim();
+            const time = this.readTimeFromDropdowns(position);
             const status = statusSelect.value;
 
             // Only add if rider is selected
@@ -2353,25 +2450,14 @@ const UI = {
                         position: position,
                         status: status
                     });
-                } else if (time) {
-                    // Normal finish - validate time format
-                    const validation = DataManager.validateTimeFormat(time);
-                    if (!validation.valid) {
-                        errors.push(`Position ${position}: ${validation.error}`);
-                    } else {
-                        results.push({
-                            riderId: riderId,
-                            time: validation.formatted,
-                            position: position
-                        });
-                    }
+                } else {
+                    results.push({
+                        riderId: riderId,
+                        time: time,
+                        position: position
+                    });
                 }
             }
-        }
-
-        if (errors.length > 0) {
-            alert('Fejl i tidsformater:\n\n' + errors.join('\n'));
-            return;
         }
 
         if (results.length === 0) {
@@ -2397,12 +2483,10 @@ const UI = {
         const race = DataManager.getRaceById(raceId);
         const stage = race.stages.find(s => s.id === stageId);
         const stageType = stage.stageType || 'flat';
+        const useLegacySprintPoints = race.useLegacySprintPoints === true;
 
         // Create rider options for dropdowns
-        let riderOptions = '<option value="">-- Vælg rytter --</option>';
-        riders.forEach(rider => {
-            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
-        });
+        const riderOptions = this.getRiderOptionsHTML();
 
         // Build map of existing results by position
         const resultsByPosition = {};
@@ -2414,13 +2498,13 @@ const UI = {
 
         // Determine how many rows to show initially
         const maxResults = Math.max(...Object.keys(resultsByPosition).map(Number), 0);
-        const initialRows = Math.max(15, maxResults + 3);
+        const initialRows = Math.max(25, maxResults + 3);
 
         // Create rows for positions
         let tableRows = '';
         for (let position = 1; position <= initialRows; position++) {
             const existingResult = resultsByPosition[position];
-            const finishPoints = PointsCalculator.getStageFinishPoints(stageType, position);
+            const finishPoints = PointsCalculator.getStageFinishPoints(stageType, position, useLegacySprintPoints);
             tableRows += `
                 <tr id="stage-result-row-${position}">
                     <td style="text-align: center; font-weight: bold;">${position}.</td>
@@ -2436,12 +2520,8 @@ const UI = {
                             <option value="DSQ" ${existingResult && existingResult.status === 'DSQ' ? 'selected' : ''}>DSQ</option>
                         </select>
                     </td>
-                    <td>
-                        <input type="text"
-                               id="time-${position}"
-                               value="${existingResult ? existingResult.time : ''}"
-                               placeholder="4:23:15"
-                               style="width: 100%; padding: 5px;">
+                    <td style="white-space: nowrap;">
+                        ${this.timeDropdownHTML(position, existingResult ? existingResult.time : null)}
                     </td>
                     <td style="text-align: center;">${finishPoints}p</td>
                 </tr>
@@ -2451,15 +2531,15 @@ const UI = {
         this.createModal('Registrer Etape Målgang', `
             <p style="margin-bottom: 10px;"><strong>Etapetype:</strong> ${PointsCalculator.getStageTypeName(stageType)}</p>
             <p style="margin-bottom: 15px; font-size: 0.9em; color: #666;">Vælg rytter og tid for hver placering. Sprint- og bjergpoint registreres separat.</p>
-            <div style="max-height: 400px; overflow-y: auto;">
+            <div style="max-height: 60vh; overflow-y: auto;">
                 <table style="width: 100%;">
                     <thead>
-                        <tr style="position: sticky; top: 0; background: white;">
-                            <th style="text-align: center; padding: 8px; width: 60px;">Plac.</th>
-                            <th style="text-align: left; padding: 8px;">Rytter</th>
-                            <th style="text-align: left; padding: 8px; width: 100px;">Status</th>
-                            <th style="text-align: left; padding: 8px; width: 120px;">Tid</th>
-                            <th style="text-align: center; padding: 8px; width: 80px;">Sprint P.</th>
+                        <tr style="position: sticky; top: 0; background: white; z-index: 1;">
+                            <th style="text-align: center; padding: 8px; width: 50px;">Plac.</th>
+                            <th style="text-align: left; padding: 8px; min-width: 220px;">Rytter</th>
+                            <th style="text-align: left; padding: 8px; width: 90px;">Status</th>
+                            <th style="text-align: left; padding: 8px; width: 150px;">Tid</th>
+                            <th style="text-align: center; padding: 8px; width: 70px;">Sprint P.</th>
                         </tr>
                     </thead>
                     <tbody id="results-tbody">
@@ -2499,14 +2579,14 @@ const UI = {
         // Loop through all possible positions (check up to 200 positions to handle dynamically added rows)
         for (let position = 1; position <= 200; position++) {
             const riderSelect = document.getElementById(`rider-${position}`);
-            const timeInput = document.getElementById(`time-${position}`);
+            const minSelect = document.getElementById(`time-min-${position}`);
             const statusSelect = document.getElementById(`status-${position}`);
 
             // Stop if we reach a position that doesn't exist
-            if (!riderSelect || !timeInput || !statusSelect) break;
+            if (!riderSelect || !minSelect || !statusSelect) break;
 
             const riderId = riderSelect.value;
-            const time = timeInput.value.trim();
+            const time = this.readTimeFromDropdowns(position);
             const status = statusSelect.value;
 
             // Only add if rider is selected
@@ -2519,25 +2599,14 @@ const UI = {
                         position: position,
                         status: status
                     });
-                } else if (time) {
-                    // Normal finish - validate time format
-                    const validation = DataManager.validateTimeFormat(time);
-                    if (!validation.valid) {
-                        errors.push(`Position ${position}: ${validation.error}`);
-                    } else {
-                        results.push({
-                            riderId: riderId,
-                            time: validation.formatted,
-                            position: position
-                        });
-                    }
+                } else {
+                    results.push({
+                        riderId: riderId,
+                        time: time,
+                        position: position
+                    });
                 }
             }
-        }
-
-        if (errors.length > 0) {
-            alert('Fejl i tidsformater:\n\n' + errors.join('\n'));
-            return;
         }
 
         if (results.length === 0) {
@@ -2661,10 +2730,7 @@ const UI = {
         }
 
         // Create rider options
-        let riderOptions = '<option value="">-- Vælg rytter --</option>';
-        riders.forEach(rider => {
-            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
-        });
+        const riderOptions = this.getRiderOptionsHTML();
 
         // Build map of existing results by position
         const resultsByPosition = {};
@@ -2694,7 +2760,7 @@ const UI = {
 
         this.createModal(`${mountain.name} - Resultater`, `
             <p style="margin-bottom: 15px;"><strong>Kategori:</strong> ${PointsCalculator.getMountainCategoryName(mountain.category)}</p>
-            <div style="max-height: 400px; overflow-y: auto;">
+            <div style="max-height: 60vh; overflow-y: auto;">
                 <table style="width: 100%;">
                     <thead>
                         <tr style="position: sticky; top: 0; background: white;">
@@ -2768,10 +2834,7 @@ const UI = {
         const maxPositions = 15; // Intermediate sprints give points to top 15
 
         // Create rider options
-        let riderOptions = '<option value="">-- Vælg rytter --</option>';
-        riders.forEach(rider => {
-            riderOptions += `<option value="${rider.id}">${rider.name}</option>`;
-        });
+        const riderOptions = this.getRiderOptionsHTML();
 
         // Build map of existing results by position
         const resultsByPosition = {};
@@ -2800,7 +2863,7 @@ const UI = {
         }
 
         this.createModal(`${sprint.name} - Resultater`, `
-            <div style="max-height: 400px; overflow-y: auto;">
+            <div style="max-height: 60vh; overflow-y: auto;">
                 <table style="width: 100%; font-size: 0.9em;">
                     <thead>
                         <tr style="position: sticky; top: 0; background: white;">
@@ -3088,6 +3151,413 @@ const UI = {
         document.body.removeChild(link);
     },
 
+    // Export shareable HTML file
+    exportShareHTML() {
+        const game = DataManager.getCurrentGame();
+        if (!game) { alert('Intet spil valgt'); return; }
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        // Build rider standings table
+        let riderRows = '';
+        const sortedRiders = [...game.riderStandings].sort((a, b) => b.worldTourPoints - a.worldTourPoints);
+        sortedRiders.forEach((standing, index) => {
+            const rider = DataManager.getRiderById(standing.riderId);
+            const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+            const teamColor = team && team.color ? team.color : '#95a5a6';
+            riderRows += `<tr>
+                <td>${index + 1}</td>
+                <td><strong>${rider ? rider.name : 'Ukendt'}</strong></td>
+                <td><span class="dot" style="background:${teamColor}"></span>${team ? team.name : 'Ukendt'}</td>
+                <td><strong>${standing.worldTourPoints}</strong></td>
+                <td>${standing.wins}</td>
+            </tr>`;
+        });
+
+        // Build team standings table
+        let teamRows = '';
+        const sortedTeams = [...game.teamStandings].sort((a, b) => b.worldTourPoints - a.worldTourPoints);
+        sortedTeams.forEach((standing, index) => {
+            const team = DataManager.getTeamById(standing.teamId);
+            const player = team ? DataManager.getPlayerById(team.playerId) : null;
+            const teamColor = team && team.color ? team.color : '#95a5a6';
+            teamRows += `<tr>
+                <td>${index + 1}</td>
+                <td><span class="dot" style="background:${teamColor}"></span><strong>${team ? team.name : 'Ukendt'}</strong></td>
+                <td>${player ? player.name : 'Ukendt'}</td>
+                <td><strong>${standing.worldTourPoints}</strong></td>
+            </tr>`;
+        });
+
+        // Build race results sections
+        let raceSections = '';
+        game.races.forEach(race => {
+            const typeName = PointsCalculator.getRaceTypeName(race.type);
+            if (race.raceFormat === 'one-day') {
+                if (!race.results || race.results.length === 0) return;
+                let rows = '';
+                const sorted = [...race.results].sort((a, b) => a.position - b.position);
+                sorted.forEach(result => {
+                    const rider = DataManager.getRiderById(result.riderId);
+                    const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                    const points = DataManager.isNonFinisher(result) ? 0 : PointsCalculator.getOneDayRacePoints(race.type, result.position);
+                    rows += `<tr><td>${result.position}</td><td>${rider ? rider.name : 'Ukendt'}</td><td>${team ? team.name : 'Ukendt'}</td><td>${result.time}</td><td>${points}</td></tr>`;
+                });
+                raceSections += `<div class="card"><h3>${race.name} <span class="race-type">${typeName}</span></h3>
+                    <table><tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>WT Point</th></tr>${rows}</table></div>`;
+            } else if (race.raceFormat === 'stage') {
+                raceSections += `<div class="card"><h3>${race.name} <span class="race-type">${typeName}</span></h3>`;
+
+                // GC
+                if (race.generalClassification && race.generalClassification.length > 0) {
+                    const leaderTime = race.generalClassification[0].totalTime;
+                    let gcRows = '';
+                    race.generalClassification.forEach(gc => {
+                        const rider = DataManager.getRiderById(gc.riderId);
+                        const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                        const points = PointsCalculator.getGCPoints(race.type, gc.position);
+                        const timeDiff = gc.totalTime - leaderTime;
+                        const timeDisplay = gc.position === 1 ? '0:00' : '+' + DataManager.formatTime(timeDiff);
+                        gcRows += `<tr><td>${gc.position}</td><td>${rider ? rider.name : 'Ukendt'}${gc.position === 1 ? ' <span class="badge badge-yellow">Førertrøje</span>' : ''}</td><td>${team ? team.name : 'Ukendt'}</td><td>${timeDisplay}</td><td>${points}</td></tr>`;
+                    });
+                    raceSections += `<h4>Samlet Klassement</h4><table><tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>WT Point</th></tr>${gcRows}</table>`;
+                }
+
+                // Points classification
+                if (race.pointsClassification && race.pointsClassification.length > 0) {
+                    let pcRows = '';
+                    race.pointsClassification.forEach(pc => {
+                        const rider = DataManager.getRiderById(pc.riderId);
+                        const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                        const wtPoints = PointsCalculator.getJerseyPoints(race.type, pc.position, 'points');
+                        pcRows += `<tr><td>${pc.position}</td><td>${rider ? rider.name : 'Ukendt'}${pc.position === 1 ? ' <span class="badge badge-green">Grøn Trøje</span>' : ''}</td><td>${team ? team.name : 'Ukendt'}</td><td>${pc.points}</td><td>${wtPoints}</td></tr>`;
+                    });
+                    raceSections += `<h4>Pointkonkurrencen</h4><table><tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Point</th><th>WT Point</th></tr>${pcRows}</table>`;
+                }
+
+                // Mountain classification
+                if (race.mountainClassification && race.mountainClassification.length > 0) {
+                    let mcRows = '';
+                    race.mountainClassification.forEach(mc => {
+                        const rider = DataManager.getRiderById(mc.riderId);
+                        const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                        const wtPoints = PointsCalculator.getJerseyPoints(race.type, mc.position, 'mountain');
+                        mcRows += `<tr><td>${mc.position}</td><td>${rider ? rider.name : 'Ukendt'}${mc.position === 1 ? ' <span class="badge badge-polka">Prikkede Trøje</span>' : ''}</td><td>${team ? team.name : 'Ukendt'}</td><td>${mc.points}</td><td>${wtPoints}</td></tr>`;
+                    });
+                    raceSections += `<h4>Bjergkonkurrencen</h4><table><tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Point</th><th>WT Point</th></tr>${mcRows}</table>`;
+                }
+
+                // Stage results
+                if (race.stages) {
+                    race.stages.forEach(stage => {
+                        if (!stage.results || stage.results.length === 0) return;
+                        let stageRows = '';
+                        const sorted = [...stage.results].sort((a, b) => a.position - b.position);
+                        sorted.forEach(result => {
+                            const rider = DataManager.getRiderById(result.riderId);
+                            const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                            const wtPoints = DataManager.isNonFinisher(result) ? 0 : PointsCalculator.getStagePoints(race.type, result.position);
+                            stageRows += `<tr><td>${result.position}</td><td>${rider ? rider.name : 'Ukendt'}</td><td>${team ? team.name : 'Ukendt'}</td><td>${result.time}</td><td>${wtPoints}</td></tr>`;
+                        });
+                        raceSections += `<h4>Etape ${stage.stageNumber}: ${stage.name}</h4><table><tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>WT Point</th></tr>${stageRows}</table>`;
+                    });
+                }
+
+                raceSections += '</div>';
+            }
+        });
+
+        const html = `<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${game.name} - Stillinger</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 12px;
+}
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+.header {
+    background: #2c3e50;
+    color: white;
+    padding: 16px 20px;
+    text-align: center;
+}
+.header h1 { font-size: 1.3rem; margin-bottom: 4px; }
+.header .date { font-size: 0.8rem; opacity: 0.8; }
+.content { padding: 12px; }
+.card {
+    background: white;
+    border: 1px solid #bdc3c7;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+h2 { font-size: 1.1rem; color: #2c3e50; margin-bottom: 8px; }
+h3 { font-size: 1rem; color: #2c3e50; margin-bottom: 8px; }
+h4 { font-size: 0.9rem; color: #555; margin: 12px 0 6px 0; }
+.race-type { font-size: 0.75rem; color: #7f8c8d; font-weight: normal; }
+table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.8rem; }
+th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #ecf0f1; }
+th { background: #f8f9fa; font-weight: 600; color: #2c3e50; font-size: 0.75rem; }
+tr:last-child td { border-bottom: none; }
+.dot {
+    display: inline-block; width: 10px; height: 10px;
+    border-radius: 50%; margin-right: 6px; vertical-align: middle;
+}
+.badge {
+    display: inline-block; padding: 2px 6px; border-radius: 8px;
+    font-size: 0.65rem; font-weight: 600; vertical-align: middle;
+}
+.badge-yellow { background: #f1c40f; color: #2c3e50; }
+.badge-green { background: #27ae60; color: white; }
+.badge-polka { background: white; color: #e74c3c; border: 1.5px dotted #e74c3c; }
+.footer {
+    text-align: center; padding: 12px;
+    font-size: 0.7rem; color: #95a5a6;
+    border-top: 1px solid #ecf0f1;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>${game.name}</h1>
+        <div class="date">Opdateret ${dateStr}</div>
+    </div>
+    <div class="content">
+        <div class="card">
+            <h2>Rytter Stilling</h2>
+            <table>
+                <tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Point</th><th>Sejre</th></tr>
+                ${riderRows}
+            </table>
+        </div>
+        <div class="card">
+            <h2>Hold Stilling</h2>
+            <table>
+                <tr><th>Pos.</th><th>Hold</th><th>Spiller</th><th>Point</th></tr>
+                ${teamRows}
+            </table>
+        </div>
+        ${raceSections}
+    </div>
+    <div class="footer">Homas Tour Pro</div>
+</div>
+</body>
+</html>`;
+
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${game.name.replace(/[^a-zæøåA-ZÆØÅ0-9]/g, '_')}_stillinger.html`;
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        this.showNotification('📤 Delings-fil downloadet! Send den via Messenger, WhatsApp el.lign.', 'success');
+    },
+
+    // Export single race as shareable HTML
+    exportRaceShareHTML(raceId) {
+        const game = DataManager.getCurrentGame();
+        const race = DataManager.getRaceById(raceId);
+        if (!game || !race) { alert('Løb ikke fundet'); return; }
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const typeName = PointsCalculator.getRaceTypeName(race.type);
+
+        let sections = '';
+
+        if (race.raceFormat === 'one-day') {
+            if (race.results && race.results.length > 0) {
+                let rows = '';
+                const sorted = [...race.results].sort((a, b) => a.position - b.position);
+                sorted.forEach(result => {
+                    const rider = DataManager.getRiderById(result.riderId);
+                    const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                    const points = DataManager.isNonFinisher(result) ? 0 : PointsCalculator.getOneDayRacePoints(race.type, result.position);
+                    rows += `<tr><td>${result.position}</td><td>${rider ? rider.name : 'Ukendt'}</td><td>${team ? team.name : 'Ukendt'}</td><td>${result.time}</td><td>${points}</td></tr>`;
+                });
+                sections += `<div class="card"><h2>Resultater</h2>
+                    <table><tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>WT Point</th></tr>${rows}</table></div>`;
+            }
+        } else if (race.raceFormat === 'stage') {
+            // GC
+            if (race.generalClassification && race.generalClassification.length > 0) {
+                const leaderTime = race.generalClassification[0].totalTime;
+                let gcRows = '';
+                race.generalClassification.forEach(gc => {
+                    const rider = DataManager.getRiderById(gc.riderId);
+                    const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                    const points = PointsCalculator.getGCPoints(race.type, gc.position);
+                    const timeDiff = gc.totalTime - leaderTime;
+                    const timeDisplay = gc.position === 1 ? '0:00' : '+' + DataManager.formatTime(timeDiff);
+                    gcRows += `<tr><td>${gc.position}</td><td>${rider ? rider.name : 'Ukendt'}${gc.position === 1 ? ' <span class="badge badge-yellow">Førertrøje</span>' : ''}</td><td>${team ? team.name : 'Ukendt'}</td><td>${timeDisplay}</td><td>${points}</td></tr>`;
+                });
+                sections += `<div class="card"><h2>Samlet Klassement</h2>
+                    <table><tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>WT Point</th></tr>${gcRows}</table></div>`;
+            }
+
+            // Points classification
+            if (race.pointsClassification && race.pointsClassification.length > 0) {
+                let pcRows = '';
+                race.pointsClassification.forEach(pc => {
+                    const rider = DataManager.getRiderById(pc.riderId);
+                    const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                    const wtPoints = PointsCalculator.getJerseyPoints(race.type, pc.position, 'points');
+                    pcRows += `<tr><td>${pc.position}</td><td>${rider ? rider.name : 'Ukendt'}${pc.position === 1 ? ' <span class="badge badge-green">Grøn Trøje</span>' : ''}</td><td>${team ? team.name : 'Ukendt'}</td><td>${pc.points}</td><td>${wtPoints}</td></tr>`;
+                });
+                sections += `<div class="card"><h2>Pointkonkurrencen</h2>
+                    <table><tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Point</th><th>WT Point</th></tr>${pcRows}</table></div>`;
+            }
+
+            // Mountain classification
+            if (race.mountainClassification && race.mountainClassification.length > 0) {
+                let mcRows = '';
+                race.mountainClassification.forEach(mc => {
+                    const rider = DataManager.getRiderById(mc.riderId);
+                    const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                    const wtPoints = PointsCalculator.getJerseyPoints(race.type, mc.position, 'mountain');
+                    mcRows += `<tr><td>${mc.position}</td><td>${rider ? rider.name : 'Ukendt'}${mc.position === 1 ? ' <span class="badge badge-polka">Prikkede Trøje</span>' : ''}</td><td>${team ? team.name : 'Ukendt'}</td><td>${mc.points}</td><td>${wtPoints}</td></tr>`;
+                });
+                sections += `<div class="card"><h2>Bjergkonkurrencen</h2>
+                    <table><tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Point</th><th>WT Point</th></tr>${mcRows}</table></div>`;
+            }
+
+            // Team classification
+            if (race.teamClassification && race.teamClassification.length > 0) {
+                const sortedTeams = [...race.teamClassification].sort((a, b) => a.position - b.position);
+                const teamLeaderTime = sortedTeams[0].totalTime;
+                let tcRows = '';
+                sortedTeams.forEach(tc => {
+                    const team = DataManager.getTeamById(tc.teamId);
+                    const player = team ? DataManager.getPlayerById(team.playerId) : null;
+                    const timeDiff = tc.totalTime - teamLeaderTime;
+                    const timeDisplay = tc.position === 1 ? '0:00' : '+' + DataManager.formatTime(timeDiff);
+                    tcRows += `<tr><td>${tc.position}</td><td>${team ? team.name : 'Ukendt'}</td><td>${player ? player.name : 'Ukendt'}</td><td>${timeDisplay}</td></tr>`;
+                });
+                sections += `<div class="card"><h2>Holdklassement</h2>
+                    <table><tr><th>Pos.</th><th>Hold</th><th>Spiller</th><th>Tid</th></tr>${tcRows}</table></div>`;
+            }
+
+            // Stage results
+            if (race.stages) {
+                race.stages.forEach(stage => {
+                    if (!stage.results || stage.results.length === 0) return;
+                    let stageRows = '';
+                    const sorted = [...stage.results].sort((a, b) => a.position - b.position);
+                    sorted.forEach(result => {
+                        const rider = DataManager.getRiderById(result.riderId);
+                        const team = rider ? DataManager.getTeamById(rider.teamId) : null;
+                        const wtPoints = DataManager.isNonFinisher(result) ? 0 : PointsCalculator.getStagePoints(race.type, result.position);
+                        stageRows += `<tr><td>${result.position}</td><td>${rider ? rider.name : 'Ukendt'}</td><td>${team ? team.name : 'Ukendt'}</td><td>${result.time}</td><td>${wtPoints}</td></tr>`;
+                    });
+                    sections += `<div class="card"><h3>Etape ${stage.stageNumber}: ${stage.name}</h3>
+                        <table><tr><th>Pos.</th><th>Rytter</th><th>Hold</th><th>Tid</th><th>WT Point</th></tr>${stageRows}</table></div>`;
+                });
+            }
+        }
+
+        const html = `<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${race.name} - Resultater</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 12px;
+}
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+.header {
+    background: #2c3e50;
+    color: white;
+    padding: 16px 20px;
+    text-align: center;
+}
+.header h1 { font-size: 1.3rem; margin-bottom: 4px; }
+.header .sub { font-size: 0.85rem; opacity: 0.9; }
+.header .date { font-size: 0.8rem; opacity: 0.7; margin-top: 4px; }
+.content { padding: 12px; }
+.card {
+    background: white;
+    border: 1px solid #bdc3c7;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+h2 { font-size: 1.05rem; color: #2c3e50; margin-bottom: 8px; }
+h3 { font-size: 0.95rem; color: #2c3e50; margin-bottom: 8px; }
+table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.8rem; }
+th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #ecf0f1; }
+th { background: #f8f9fa; font-weight: 600; color: #2c3e50; font-size: 0.75rem; }
+tr:last-child td { border-bottom: none; }
+.badge {
+    display: inline-block; padding: 2px 6px; border-radius: 8px;
+    font-size: 0.65rem; font-weight: 600; vertical-align: middle;
+}
+.badge-yellow { background: #f1c40f; color: #2c3e50; }
+.badge-green { background: #27ae60; color: white; }
+.badge-polka { background: white; color: #e74c3c; border: 1.5px dotted #e74c3c; }
+.footer {
+    text-align: center; padding: 12px;
+    font-size: 0.7rem; color: #95a5a6;
+    border-top: 1px solid #ecf0f1;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>${race.name}</h1>
+        <div class="sub">${typeName}${race.raceFormat === 'stage' ? ' — Etapeløb' : ' — Endagsløb'}</div>
+        <div class="date">Opdateret ${dateStr}</div>
+    </div>
+    <div class="content">
+        ${sections}
+    </div>
+    <div class="footer">Homas Tour Pro — ${game.name}</div>
+</div>
+</body>
+</html>`;
+
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${race.name.replace(/[^a-zæøåA-ZÆØÅ0-9]/g, '_')}_resultater.html`;
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        this.showNotification('📤 Delings-fil downloadet! Send den via Messenger, WhatsApp el.lign.', 'success');
+    },
+
     // Create modal
     createModal(title, content, callback) {
         // Close any existing modals first
@@ -3095,7 +3565,7 @@ const UI = {
 
         const modalHtml = `
             <div id="modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="if(event.target.id === 'modal-overlay') UI.closeModal()">
-                <div style="background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                <div style="background: white; padding: 30px; border-radius: 8px; max-width: 800px; width: 95%; max-height: 85vh; overflow-y: auto;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2>${title}</h2>
                         <button onclick="UI.closeModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
@@ -3251,6 +3721,65 @@ const UI = {
         }
 
         resultsDiv.innerHTML = html;
+    },
+
+    // Afslut endagsløb
+    finalizeOneDayRace(raceId) {
+        DataManager.finalizeOneDayRace(raceId);
+        this.showNotification('✅ Endagsløb afsluttet! World Tour points er beregnet.', 'success');
+        this.viewRace(raceId);
+    },
+
+    // Afslut etape — beregn klassementer
+    finalizeStage(raceId) {
+        DataManager.finalizeStage(raceId);
+        this.showNotification('✅ Etape afsluttet! Klassementer er opdateret.', 'success');
+        this.viewRace(raceId);
+    },
+
+    // Afslut etapeløb
+    finalizeStageRace(raceId) {
+        if (!confirm('Er du sikker på at du vil afslutte etapeløbet?\n\nDette beregner World Tour points for samlet klassement, trøjer og førertrøje bonus.')) {
+            return;
+        }
+        DataManager.finalizeStageRace(raceId);
+        this.showNotification('✅ Etapeløb afsluttet! Alle World Tour points er beregnet.', 'success');
+        this.viewRace(raceId);
+    },
+
+    // Auto-gem til fil via File System Access API
+    async toggleAutoSave() {
+        if (!window.showSaveFilePicker) {
+            alert('Din browser understøtter ikke auto-gem til fil.\n\nBrug Chrome eller Edge for denne funktion.');
+            return;
+        }
+
+        if (DataManager.fileHandle) {
+            DataManager.disconnectAutoSave();
+            this.updateAutoSaveButton();
+            this.showNotification('Auto-gem deaktiveret.', 'info');
+        } else {
+            const success = await DataManager.connectAutoSave();
+            if (success) {
+                this.updateAutoSaveButton();
+                this.showNotification('✅ Auto-gem aktiveret! Data gemmes automatisk til filen.', 'success');
+            }
+        }
+    },
+
+    updateAutoSaveButton() {
+        const btn = document.getElementById('auto-save-btn');
+        if (!btn) return;
+
+        if (DataManager.fileHandle) {
+            btn.textContent = '📁 Auto-gem ✓';
+            btn.classList.add('auto-save-active');
+            btn.title = 'Auto-gem aktiv: ' + DataManager.fileHandle.name + ' (klik for at deaktivere)';
+        } else {
+            btn.textContent = '📁 Auto-gem';
+            btn.classList.remove('auto-save-active');
+            btn.title = 'Auto-gem til fil';
+        }
     },
 
     // Export data (download backup)

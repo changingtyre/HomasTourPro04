@@ -1,6 +1,19 @@
 // Data Manager - handles all data operations and localStorage
 const DataManager = {
     STORAGE_KEY: 'cyclingTourData',
+    fileHandle: null,
+
+    // Skrivebeskyttet: data holdes kun i hukommelsen og hentes fra data.json
+    readOnly: false,
+    readOnlyJson: null,
+
+    async loadReadOnlyData() {
+        const response = await fetch('data.json', { cache: 'no-store' });
+        if (!response.ok) throw new Error('data.json kunne ikke hentes (' + response.status + ')');
+        const data = await response.json();
+        if (!data.games || !Array.isArray(data.games)) throw new Error('data.json har ugyldigt format');
+        this.readOnlyJson = JSON.stringify(data);
+    },
 
     // Initialize data structure
     initData() {
@@ -18,6 +31,9 @@ const DataManager = {
 
     // Load data from localStorage
     loadData() {
+        if (this.readOnly) {
+            return this.readOnlyJson ? JSON.parse(this.readOnlyJson) : null;
+        }
         try {
             const json = localStorage.getItem(this.STORAGE_KEY);
             console.log('loadData: Retrieved from localStorage:', json ? json.substring(0, 100) + '...' : 'null');
@@ -31,6 +47,10 @@ const DataManager = {
 
     // Save data to localStorage
     saveData(data) {
+        if (this.readOnly) {
+            this.readOnlyJson = JSON.stringify(data);
+            return;
+        }
         try {
             const jsonString = JSON.stringify(data);
             console.log('saveData: Saving to localStorage:', jsonString.substring(0, 100) + '...');
@@ -43,6 +63,11 @@ const DataManager = {
                 throw new Error('Data was not saved to localStorage!');
             }
             console.log('saveData: Verified data was saved');
+
+            // Auto-gem til fil hvis aktiveret
+            if (this.fileHandle) {
+                this.saveToFile(data);
+            }
         } catch (error) {
             console.error('Error saving data to localStorage:', error);
             alert('KRITISK FEJL: Kan ikke gemme data!\n\n' +
@@ -429,6 +454,26 @@ const DataManager = {
         return true;
     },
 
+    // Update stage notes
+    updateStageNotes(raceId, stageId, notes) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return false;
+
+        const stage = race.stages.find(s => s.id === stageId);
+        if (!stage) return false;
+
+        stage.notes = notes || null;
+
+        this.saveData(data);
+        return true;
+    },
+
     // Update total stages for a stage race
     updateTotalStages(raceId, totalStages) {
         const data = this.getData();
@@ -572,11 +617,7 @@ const DataManager = {
         };
         stage.results.push(result);
 
-        // Save the stage result first
         this.saveData(data);
-
-        // Recalculate classifications (this will save again with updated classifications)
-        this.recalculateClassifications(raceId);
 
         return result;
     },
@@ -601,19 +642,17 @@ const DataManager = {
         // Add all new results (only time and position, points are calculated from sprints/mountains)
         results.forEach(result => {
             if (result.riderId && result.time && result.position) {
-                stage.results.push({
+                const entry = {
                     riderId: result.riderId,
                     time: result.time,
                     position: result.position
-                });
+                };
+                if (result.status) entry.status = result.status;
+                stage.results.push(entry);
             }
         });
 
-        // Save the stage results first
         this.saveData(data);
-
-        // Recalculate classifications (this will save again with updated classifications)
-        this.recalculateClassifications(raceId);
 
         return stage.results;
     },
@@ -639,9 +678,6 @@ const DataManager = {
         };
         race.results.push(result);
 
-        // Recalculate world tour points
-        this.recalculateWorldTourPoints();
-
         this.saveData(data);
         return result;
     },
@@ -663,16 +699,15 @@ const DataManager = {
         // Add all new results
         results.forEach(result => {
             if (result.riderId && result.time && result.position) {
-                race.results.push({
+                const entry = {
                     riderId: result.riderId,
                     time: result.time,
                     position: result.position
-                });
+                };
+                if (result.status) entry.status = result.status;
+                race.results.push(entry);
             }
         });
-
-        // Recalculate world tour points
-        this.recalculateWorldTourPoints();
 
         this.saveData(data);
         return race.results;
@@ -881,6 +916,12 @@ const DataManager = {
         return sprint.results;
     },
 
+    // DNF/DSQ — tjekker også time, da ældre data ikke gemte status
+    isNonFinisher(result) {
+        const marks = ['DNF', 'DSQ'];
+        return marks.includes(result.status) || marks.includes(result.time);
+    },
+
     // Recalculate classifications for stage race
     recalculateClassifications(raceId) {
         const data = this.getData();
@@ -894,17 +935,39 @@ const DataManager = {
 
         console.log('Recalculating classifications for race:', race.name);
 
-        // Calculate general classification (total time)
+        // Calculate general classification (total time minus bonus seconds for top 3 on each stage)
         const gcMap = new Map();
+        const bonusMap = new Map();
         race.stages.forEach(stage => {
             stage.results.forEach(result => {
                 const currentTime = gcMap.get(result.riderId) || 0;
                 gcMap.set(result.riderId, currentTime + this.parseTime(result.time));
+
+                const bonus = PointsCalculator.getStageBonusSeconds(result.position);
+                if (bonus > 0) {
+                    const currentBonus = bonusMap.get(result.riderId) || 0;
+                    bonusMap.set(result.riderId, currentBonus + bonus);
+                }
             });
         });
 
+        // Ryttere der er udgået fjernes fra alle samlede stillinger
+        const nonFinishers = new Set();
+        race.stages.forEach(stage => {
+            stage.results.forEach(result => {
+                if (this.isNonFinisher(result)) nonFinishers.add(result.riderId);
+            });
+        });
+        nonFinishers.forEach(riderId => {
+            gcMap.delete(riderId);
+            bonusMap.delete(riderId);
+        });
+
         race.generalClassification = Array.from(gcMap.entries())
-            .map(([riderId, totalTime]) => ({ riderId, totalTime }))
+            .map(([riderId, totalTime]) => {
+                const bonusSeconds = bonusMap.get(riderId) || 0;
+                return { riderId, totalTime: totalTime - bonusSeconds, bonusSeconds };
+            })
             .sort((a, b) => a.totalTime - b.totalTime)
             .map((item, index) => ({ ...item, position: index + 1 }));
 
@@ -913,9 +976,10 @@ const DataManager = {
         race.stages.forEach(stage => {
             // Points from stage finish
             if (stage.results && stage.results.length > 0) {
+                const useLegacy = race.useLegacySprintPoints === true;
                 stage.results.forEach(result => {
                     const stageType = stage.stageType || 'flat';
-                    const finishPoints = PointsCalculator.getStageFinishPoints(stageType, result.position);
+                    const finishPoints = PointsCalculator.getStageFinishPoints(stageType, result.position, useLegacy);
                     const currentPoints = pointsMap.get(result.riderId) || 0;
                     pointsMap.set(result.riderId, currentPoints + finishPoints);
                 });
@@ -934,6 +998,8 @@ const DataManager = {
                 });
             }
         });
+
+        nonFinishers.forEach(riderId => pointsMap.delete(riderId));
 
         race.pointsClassification = Array.from(pointsMap.entries())
             .map(([riderId, points]) => ({ riderId, points }))
@@ -966,6 +1032,8 @@ const DataManager = {
             }
         });
 
+        nonFinishers.forEach(riderId => mountainMap.delete(riderId));
+
         race.mountainClassification = Array.from(mountainMap.entries())
             .map(([riderId, points]) => ({ riderId, points }))
             .sort((a, b) => b.points - a.points)
@@ -996,6 +1064,8 @@ const DataManager = {
                 const teamRidersMap = new Map();
 
                 stage.results.forEach(result => {
+                    if (this.isNonFinisher(result)) return;
+
                     // Find which team this rider belongs to
                     let riderTeamId = null;
                     for (const team of game.teams) {
@@ -1060,10 +1130,11 @@ const DataManager = {
             });
         }
 
+        // Gem klassementer først, så recalculateWorldTourPoints kan læse dem
+        this.saveData(data);
+
         // Recalculate world tour points
         this.recalculateWorldTourPoints();
-
-        this.saveData(data);
     },
 
     // Set yellow jersey days for a rider
@@ -1079,9 +1150,28 @@ const DataManager = {
 
         race.yellowJerseyDays[riderId] = days;
 
+        // Gem først, så recalculateWorldTourPoints kan læse korrekt data
+        this.saveData(data);
+
         // Recalculate world tour points
         this.recalculateWorldTourPoints();
+    },
 
+    // One-time migration: tag stage races that were already complete before the
+    // sprint-points top-15→top-7 rule change so they keep their original points.
+    migrateLegacySprintPoints() {
+        const data = this.getData();
+        if (data.legacySprintMigrationDone) return;
+
+        data.games.forEach(game => {
+            game.races.forEach(race => {
+                if (race.raceFormat === 'stage' && race.isComplete !== false) {
+                    race.useLegacySprintPoints = true;
+                }
+            });
+        });
+
+        data.legacySprintMigrationDone = true;
         this.saveData(data);
     },
 
@@ -1131,6 +1221,7 @@ const DataManager = {
             if (race.raceFormat === 'one-day') {
                 // One-day race points
                 race.results.forEach(result => {
+                    if (this.isNonFinisher(result)) return;
                     const points = PointsCalculator.getOneDayRacePoints(race.type, result.position);
                     this.addPointsToRider(game, result.riderId, points, result.position === 1);
                 });
@@ -1167,6 +1258,7 @@ const DataManager = {
                 // Stage wins (always awarded, even during ongoing race)
                 race.stages.forEach(stage => {
                     stage.results.forEach(result => {
+                        if (this.isNonFinisher(result)) return;
                         const points = PointsCalculator.getStagePoints(race.type, result.position);
                         this.addPointsToRider(game, result.riderId, points, result.position === 1);
                     });
@@ -1306,6 +1398,84 @@ const DataManager = {
             valid: false,
             error: 'Ugyldigt tidsformat. Brug HH:MM:SS, MM:SS eller SS'
         };
+    },
+
+    // File System Access API - auto-gem til fil
+    async connectAutoSave() {
+        try {
+            this.fileHandle = await window.showSaveFilePicker({
+                suggestedName: 'homas-tour-data.json',
+                types: [{
+                    description: 'JSON filer',
+                    accept: { 'application/json': ['.json'] }
+                }]
+            });
+            // Gem nuværende data til filen med det samme
+            await this.saveToFile(this.getData());
+            console.log('Auto-gem aktiveret:', this.fileHandle.name);
+            return true;
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                // Bruger annullerede dialogen
+                return false;
+            }
+            console.error('Fejl ved aktivering af auto-gem:', error);
+            return false;
+        }
+    },
+
+    disconnectAutoSave() {
+        this.fileHandle = null;
+        console.log('Auto-gem deaktiveret');
+    },
+
+    async saveToFile(data) {
+        if (!this.fileHandle) return;
+        try {
+            const writable = await this.fileHandle.createWritable();
+            await writable.write(JSON.stringify(data, null, 2));
+            await writable.close();
+            console.log('Auto-gem: Data gemt til fil');
+        } catch (error) {
+            console.error('Auto-gem fejl:', error);
+            this.fileHandle = null;
+            if (typeof UI !== 'undefined' && UI.showNotification) {
+                UI.showNotification('⚠️ Auto-gem fejlede. Fil-forbindelse mistet. Klik "Auto-gem" igen for at genaktivere.', 'error');
+            }
+            if (typeof UI !== 'undefined' && UI.updateAutoSaveButton) {
+                UI.updateAutoSaveButton();
+            }
+        }
+    },
+
+    // Afslut endagsløb — beregn World Tour points
+    finalizeOneDayRace(raceId) {
+        this.recalculateWorldTourPoints();
+        return true;
+    },
+
+    // Afslut etape — beregn klassementer (GC, point, bjerg, hold)
+    finalizeStage(raceId) {
+        this.recalculateClassifications(raceId);
+        return true;
+    },
+
+    // Afslut etapeløb — markér som færdigt og beregn alle World Tour points
+    finalizeStageRace(raceId) {
+        const data = this.getData();
+        if (!data.currentGameId) return false;
+
+        const game = data.games.find(g => g.id === data.currentGameId);
+        if (!game) return false;
+
+        const race = game.races.find(r => r.id === raceId);
+        if (!race) return false;
+
+        race.isComplete = true;
+        this.saveData(data);
+
+        this.recalculateClassifications(raceId);
+        return true;
     },
 
     // Export all data as JSON file

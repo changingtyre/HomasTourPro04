@@ -25,8 +25,15 @@ const PointsCalculator = {
     // Other World Cup races
     WORLDCUP_OTHER: [40, 32, 26, 22, 18, 14, 10, 6, 2],
 
-    // Stage finish points (for sprint classification)
+    // Stage finish points (for sprint classification) — top 7 only
     STAGE_FINISH: {
+        flat: [50, 30, 20, 16, 14, 12, 10],
+        hilly: [30, 25, 22, 20, 18, 16, 14],
+        mountain: [20, 17, 15, 12, 11, 10, 9]
+    },
+
+    // Legacy table (top 15) — kept for stage races completed before the rule change
+    STAGE_FINISH_LEGACY: {
         flat: [50, 30, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1],
         hilly: [30, 25, 22, 20, 18, 16, 14, 12, 8, 6, 5, 4, 3, 2, 1],
         mountain: [20, 17, 15, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
@@ -34,6 +41,9 @@ const PointsCalculator = {
 
     // Intermediate sprint points
     INTERMEDIATE_SPRINT: [20, 17, 15, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+
+    // Bonussekunder pr. etape (trækkes fra rytterens samlede tid)
+    BONUS_SECONDS: [4, 2, 1],
 
     // Mountain classification points
     MOUNTAIN: {
@@ -142,14 +152,21 @@ const PointsCalculator = {
     },
 
     // Get points for stage finish (sprint classification)
-    getStageFinishPoints(stageType, position) {
-        const pointsArray = this.STAGE_FINISH[stageType] || this.STAGE_FINISH.flat;
+    // useLegacy=true returns top-15 distribution used before the 2026 rule change
+    getStageFinishPoints(stageType, position, useLegacy = false) {
+        const table = useLegacy ? this.STAGE_FINISH_LEGACY : this.STAGE_FINISH;
+        const pointsArray = table[stageType] || table.flat;
         return pointsArray[position - 1] || 0;
     },
 
     // Get points for intermediate sprint
     getIntermediateSprintPoints(position) {
         return this.INTERMEDIATE_SPRINT[position - 1] || 0;
+    },
+
+    // Get bonus seconds for stage finish position (top 3 only)
+    getStageBonusSeconds(position) {
+        return this.BONUS_SECONDS[position - 1] || 0;
     },
 
     // Get points for mountain climb
