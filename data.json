@@ -73,17 +73,17 @@
             },
             {
               "id": "rider-1772142814693",
-              "name": "Manuel BELTRAN",
+              "name": "Manuel Beltran",
               "teamId": "team-1764359563963"
             },
             {
               "id": "rider-1772142825571",
-              "name": "Floyd LANDIS",
+              "name": "Floyd Landis",
               "teamId": "team-1764359563963"
             },
             {
               "id": "rider-1781039889814",
-              "name": "José AZEVEDO",
+              "name": "José Azevedo",
               "teamId": "team-1764359563963"
             }
           ]
@@ -125,7 +125,7 @@
             },
             {
               "id": "rider-1781039911360",
-              "name": "Levi LEIPHEIMER",
+              "name": "Levi Leipheimer",
               "teamId": "team-1764359620086"
             }
           ]
@@ -172,7 +172,7 @@
             },
             {
               "id": "rider-1781039902936",
-              "name": "Jan ULLRICH",
+              "name": "Jan Ullrich",
               "teamId": "team-1764359665627"
             }
           ]
@@ -219,12 +219,12 @@
             },
             {
               "id": "rider-1772143123755",
-              "name": "Andy SCHLECK",
+              "name": "Andy Schleck",
               "teamId": "team-1764359670908"
             },
             {
               "id": "rider-1772143130870",
-              "name": "Frank SCHLECK",
+              "name": "Frank Schleck",
               "teamId": "team-1764359670908"
             }
           ]
@@ -261,7 +261,7 @@
             },
             {
               "id": "rider-1772143146401",
-              "name": "Laurant DUFAUX",
+              "name": "Laurant Dufaux",
               "teamId": "team-1764359680989"
             }
           ]
@@ -368,8 +368,7 @@
           "mountainClassification": null,
           "teamClassification": null,
           "yellowJerseyDays": null,
-          "date": "2004-04-04",
-          "country": "be"
+          "date": "2004-04-04"
         },
         {
           "id": "race-1764359869642",
@@ -485,8 +484,7 @@
           "mountainClassification": null,
           "teamClassification": null,
           "yellowJerseyDays": null,
-          "date": "2004-03-20",
-          "country": "it"
+          "date": "2004-03-20"
         },
         {
           "id": "race-1765302783327",
@@ -605,8 +603,7 @@
           "yellowJerseyDays": null,
           "totalStages": null,
           "isComplete": true,
-          "notes": "Til stede: \nBrian\nDan\nAugust\nLaurits\nTue",
-          "country": "fr"
+          "notes": "Til stede: \nBrian\nDan\nAugust\nLaurits\nTue"
         },
         {
           "id": "race-1770217074715",
@@ -705,8 +702,7 @@
           "yellowJerseyDays": null,
           "totalStages": null,
           "isComplete": true,
-          "notes": "[Liege – Bastogne – Liege] B – C – ▲G [La Redoute] – D – ▲E [La Roche aux Faucons] – B – C – ▲G [St.Nicolas] – D – A\n\n\nLa Redoute\n•\tKategori 3\n•\t1,6-2 km med gennemsnitlig stigning på 8,9-9,4%\n•\tDen mest ikoniske stigning i løbet, selvom den teknisk set ikke er den sværeste\nLa Roche aux Faucons\n•\tKategori 3\n•\t1,3 km med gennemsnitlig stigning på 11%\n•\tHårdere stigning end La Redoute rent teknisk.\nSaint-Nicolas (Côte de Saint-Nicolas)\n•\tKategori 4\n•\t1,2-1,4 km med gennemsnitlig stigning på 8-9,6%",
-          "country": "be"
+          "notes": "[Liege – Bastogne – Liege] B – C – ▲G [La Redoute] – D – ▲E [La Roche aux Faucons] – B – C – ▲G [St.Nicolas] – D – A\n\n\nLa Redoute\n•\tKategori 3\n•\t1,6-2 km med gennemsnitlig stigning på 8,9-9,4%\n•\tDen mest ikoniske stigning i løbet, selvom den teknisk set ikke er den sværeste\nLa Roche aux Faucons\n•\tKategori 3\n•\t1,3 km med gennemsnitlig stigning på 11%\n•\tHårdere stigning end La Redoute rent teknisk.\nSaint-Nicolas (Côte de Saint-Nicolas)\n•\tKategori 4\n•\t1,2-1,4 km med gennemsnitlig stigning på 8-9,6%"
         },
         {
           "id": "race-1770299814466",
@@ -1750,8 +1746,7 @@
           "totalStages": 4,
           "isComplete": true,
           "notes": "A-B-C-D-E (bjerg) -B-C-D Sprint -A-B\n\nEkstra formkort fra første etape: \nNardello\nGuerini\nZabel\nBettini\nVirenque\nLandis\nKyllingen\nPiil",
-          "useLegacySprintPoints": true,
-          "country": "it"
+          "useLegacySprintPoints": true
         },
         {
           "id": "race-1781010506953",
@@ -2018,9 +2013,8 @@
                 },
                 {
                   "riderId": "rider-1764874408874",
-                  "time": "DNF",
-                  "position": 20,
-                  "status": "DNF"
+                  "time": "8:48",
+                  "position": 20
                 }
               ],
               "mountains": [
@@ -2306,7 +2300,103 @@
               "stageType": "mountain",
               "finishOnMountain": false,
               "finishMountainCategory": null,
-              "results": [],
+              "results": [
+                {
+                  "riderId": "rider-1764874895364",
+                  "time": "0:00",
+                  "position": 1
+                },
+                {
+                  "riderId": "rider-1764874527565",
+                  "time": "0:00",
+                  "position": 2
+                },
+                {
+                  "riderId": "rider-1781039902936",
+                  "time": "0:00",
+                  "position": 3
+                },
+                {
+                  "riderId": "rider-1764874611992",
+                  "time": "1:12",
+                  "position": 4
+                },
+                {
+                  "riderId": "rider-1772128827854",
+                  "time": "1:12",
+                  "position": 5
+                },
+                {
+                  "riderId": "rider-1765479176573",
+                  "time": "1:12",
+                  "position": 6
+                },
+                {
+                  "riderId": "rider-1764359634068",
+                  "time": "2:06",
+                  "position": 7
+                },
+                {
+                  "riderId": "rider-1772128957743",
+                  "time": "2:18",
+                  "position": 8
+                },
+                {
+                  "riderId": "rider-1764359593861",
+                  "time": "2:18",
+                  "position": 9
+                },
+                {
+                  "riderId": "rider-1772128989945",
+                  "time": "2:36",
+                  "position": 10
+                },
+                {
+                  "riderId": "rider-1781039889814",
+                  "time": "3:24",
+                  "position": 11
+                },
+                {
+                  "riderId": "rider-1764874902520",
+                  "time": "3:24",
+                  "position": 12
+                },
+                {
+                  "riderId": "rider-1764874595405",
+                  "time": "5:42",
+                  "position": 13
+                },
+                {
+                  "riderId": "rider-1781039911360",
+                  "time": "7:06",
+                  "position": 14
+                },
+                {
+                  "riderId": "rider-1764874768174",
+                  "time": "7:36",
+                  "position": 15
+                },
+                {
+                  "riderId": "rider-1765479234257",
+                  "time": "8:24",
+                  "position": 16
+                },
+                {
+                  "riderId": "rider-1772143130870",
+                  "time": "8:48",
+                  "position": 17
+                },
+                {
+                  "riderId": "rider-1764874685267",
+                  "time": "9:00",
+                  "position": 18
+                },
+                {
+                  "riderId": "rider-1764359574667",
+                  "time": "11:12",
+                  "position": 19
+                }
+              ],
               "mountains": [
                 {
                   "id": "mountain-1791394223625",
@@ -2343,147 +2433,225 @@
                   "id": "mountain-1791394252405",
                   "name": "Madeleine",
                   "category": "hc",
-                  "results": []
+                  "results": [
+                    {
+                      "riderId": "rider-1764874895364",
+                      "position": 1
+                    },
+                    {
+                      "riderId": "rider-1781039902936",
+                      "position": 2
+                    },
+                    {
+                      "riderId": "rider-1772128827854",
+                      "position": 3
+                    },
+                    {
+                      "riderId": "rider-1765479176573",
+                      "position": 4
+                    },
+                    {
+                      "riderId": "rider-1764874527565",
+                      "position": 5
+                    },
+                    {
+                      "riderId": "rider-1764874611992",
+                      "position": 6
+                    },
+                    {
+                      "riderId": "rider-1764874768174",
+                      "position": 7
+                    },
+                    {
+                      "riderId": "rider-1772128957743",
+                      "position": 8
+                    }
+                  ]
                 },
                 {
                   "id": "mountain-1791394265920",
                   "name": "Col de la Croi",
                   "category": "cat1",
-                  "results": []
+                  "results": [
+                    {
+                      "riderId": "rider-1764874527565",
+                      "position": 1
+                    },
+                    {
+                      "riderId": "rider-1764874895364",
+                      "position": 2
+                    },
+                    {
+                      "riderId": "rider-1781039902936",
+                      "position": 3
+                    },
+                    {
+                      "riderId": "rider-1772128827854",
+                      "position": 4
+                    },
+                    {
+                      "riderId": "rider-1765479176573",
+                      "position": 5
+                    },
+                    {
+                      "riderId": "rider-1764874611992",
+                      "position": 6
+                    }
+                  ]
                 }
               ],
               "sprints": [
                 {
                   "id": "sprint-1791394278432",
                   "name": "Mellemsprint",
-                  "results": []
+                  "results": [
+                    {
+                      "riderId": "rider-1781039902936",
+                      "position": 1
+                    },
+                    {
+                      "riderId": "rider-1772128827854",
+                      "position": 2
+                    },
+                    {
+                      "riderId": "rider-1764874895364",
+                      "position": 3
+                    },
+                    {
+                      "riderId": "rider-1765479176573",
+                      "position": 4
+                    },
+                    {
+                      "riderId": "rider-1764874527565",
+                      "position": 5
+                    }
+                  ]
                 }
               ],
-              "notes": "D-F(1)-B-C-G(HC)-D-A-B(sprint)-C-G(1)-D"
+              "notes": "D-F(1)-B-C-G(HC)-D-A-B(sprint)-C-G(1)-D\n\nKort tilbage efter etapen\n\nBoonen 1 kort\nFrank schleck 2 kort\nLeipheimer 2 kort"
             }
           ],
           "results": null,
           "generalClassification": [
             {
               "riderId": "rider-1772128957743",
-              "totalTime": 162,
+              "totalTime": 300,
               "bonusSeconds": 6,
               "position": 1
             },
             {
-              "riderId": "rider-1781039889814",
-              "totalTime": 220,
-              "bonusSeconds": 2,
+              "riderId": "rider-1764359593861",
+              "totalTime": 365,
+              "bonusSeconds": 1,
               "position": 2
             },
             {
-              "riderId": "rider-1764359593861",
-              "totalTime": 227,
-              "bonusSeconds": 1,
+              "riderId": "rider-1764874895364",
+              "totalTime": 366,
+              "bonusSeconds": 6,
               "position": 3
             },
             {
-              "riderId": "rider-1764874902520",
-              "totalTime": 314,
-              "bonusSeconds": 4,
+              "riderId": "rider-1781039889814",
+              "totalTime": 424,
+              "bonusSeconds": 2,
               "position": 4
             },
             {
-              "riderId": "rider-1772128989945",
-              "totalTime": 359,
+              "riderId": "rider-1781039902936",
+              "totalTime": 449,
               "bonusSeconds": 1,
               "position": 5
             },
             {
-              "riderId": "rider-1764874895364",
-              "totalTime": 370,
-              "bonusSeconds": 2,
+              "riderId": "rider-1772128989945",
+              "totalTime": 515,
+              "bonusSeconds": 1,
               "position": 6
             },
             {
-              "riderId": "rider-1765479234257",
-              "totalTime": 432,
-              "bonusSeconds": 0,
+              "riderId": "rider-1764874902520",
+              "totalTime": 518,
+              "bonusSeconds": 4,
               "position": 7
             },
             {
-              "riderId": "rider-1781039902936",
-              "totalTime": 450,
+              "riderId": "rider-1764874611992",
+              "totalTime": 564,
               "bonusSeconds": 0,
               "position": 8
             },
             {
-              "riderId": "rider-1764359574667",
-              "totalTime": 464,
-              "bonusSeconds": 4,
+              "riderId": "rider-1765479176573",
+              "totalTime": 588,
+              "bonusSeconds": 0,
               "position": 9
             },
             {
-              "riderId": "rider-1764874685267",
-              "totalTime": 479,
-              "bonusSeconds": 1,
+              "riderId": "rider-1764874408874",
+              "totalTime": 630,
+              "bonusSeconds": 0,
               "position": 10
             },
             {
-              "riderId": "rider-1764874611992",
-              "totalTime": 492,
+              "riderId": "rider-1772128827854",
+              "totalTime": 762,
               "bonusSeconds": 0,
               "position": 11
             },
             {
-              "riderId": "rider-1781039911360",
-              "totalTime": 504,
-              "bonusSeconds": 0,
+              "riderId": "rider-1764874527565",
+              "totalTime": 784,
+              "bonusSeconds": 2,
               "position": 12
             },
             {
-              "riderId": "rider-1765479176573",
-              "totalTime": 516,
+              "riderId": "rider-1764359634068",
+              "totalTime": 918,
               "bonusSeconds": 0,
               "position": 13
             },
             {
-              "riderId": "rider-1772143130870",
-              "totalTime": 570,
+              "riderId": "rider-1781039911360",
+              "totalTime": 930,
               "bonusSeconds": 0,
               "position": 14
             },
             {
-              "riderId": "rider-1764874768174",
-              "totalTime": 630,
+              "riderId": "rider-1765479234257",
+              "totalTime": 936,
               "bonusSeconds": 0,
               "position": 15
             },
             {
-              "riderId": "rider-1772128827854",
-              "totalTime": 690,
-              "bonusSeconds": 0,
+              "riderId": "rider-1764874685267",
+              "totalTime": 1019,
+              "bonusSeconds": 1,
               "position": 16
             },
             {
-              "riderId": "rider-1764874527565",
-              "totalTime": 786,
+              "riderId": "rider-1764874768174",
+              "totalTime": 1086,
               "bonusSeconds": 0,
               "position": 17
             },
             {
-              "riderId": "rider-1764359634068",
-              "totalTime": 792,
+              "riderId": "rider-1772143130870",
+              "totalTime": 1098,
               "bonusSeconds": 0,
               "position": 18
             },
             {
-              "riderId": "rider-1764874595405",
-              "totalTime": 906,
-              "bonusSeconds": 0,
+              "riderId": "rider-1764359574667",
+              "totalTime": 1136,
+              "bonusSeconds": 4,
               "position": 19
             },
             {
-              "riderId": "rider-1764874408874",
-              "dnf": "DNF",
-              "position": null,
-              "totalTime": null,
-              "bonusSeconds": 0
+              "riderId": "rider-1764874595405",
+              "totalTime": 1248,
+              "bonusSeconds": 0,
+              "position": 20
             }
           ],
           "pointsClassification": [
@@ -2493,181 +2661,180 @@
               "position": 1
             },
             {
+              "riderId": "rider-1764874895364",
+              "points": 67,
+              "position": 2
+            },
+            {
               "riderId": "rider-1781039889814",
               "points": 64,
-              "position": 2
+              "position": 3
             },
             {
               "riderId": "rider-1764874768174",
               "points": 58,
-              "position": 3
+              "position": 4
             },
             {
               "riderId": "rider-1764359593861",
               "points": 54,
-              "position": 4
+              "position": 5
             },
             {
               "riderId": "rider-1764874685267",
               "points": 51,
-              "position": 5
-            },
-            {
-              "riderId": "rider-1764874902520",
-              "points": 35,
               "position": 6
             },
             {
               "riderId": "rider-1764359634068",
-              "points": 35,
+              "points": 44,
               "position": 7
+            },
+            {
+              "riderId": "rider-1765479176573",
+              "points": 43,
+              "position": 8
+            },
+            {
+              "riderId": "rider-1772128827854",
+              "points": 37,
+              "position": 9
+            },
+            {
+              "riderId": "rider-1764874902520",
+              "points": 35,
+              "position": 10
+            },
+            {
+              "riderId": "rider-1781039902936",
+              "points": 35,
+              "position": 11
             },
             {
               "riderId": "rider-1765479234257",
               "points": 33,
-              "position": 8
+              "position": 12
             },
             {
-              "riderId": "rider-1764874895364",
-              "points": 32,
-              "position": 9
+              "riderId": "rider-1764874527565",
+              "points": 28,
+              "position": 13
             },
             {
-              "riderId": "rider-1765479176573",
-              "points": 21,
-              "position": 10
+              "riderId": "rider-1764874408874",
+              "points": 27,
+              "position": 14
+            },
+            {
+              "riderId": "rider-1764874611992",
+              "points": 22,
+              "position": 15
             },
             {
               "riderId": "rider-1764359574667",
               "points": 20,
-              "position": 11
+              "position": 16
             },
             {
               "riderId": "rider-1772128989945",
               "points": 15,
-              "position": 12
+              "position": 17
             },
             {
               "riderId": "rider-1781039911360",
               "points": 14,
-              "position": 13
-            },
-            {
-              "riderId": "rider-1764874611992",
-              "points": 10,
-              "position": 14
-            },
-            {
-              "riderId": "rider-1772128827854",
-              "points": 9,
-              "position": 15
+              "position": 18
             },
             {
               "riderId": "rider-1772143130870",
               "points": 0,
-              "position": 16
-            },
-            {
-              "riderId": "rider-1781039902936",
-              "points": 0,
-              "position": 17
-            },
-            {
-              "riderId": "rider-1764874527565",
-              "points": 0,
-              "position": 18
+              "position": 19
             },
             {
               "riderId": "rider-1764874595405",
               "points": 0,
-              "position": 19
-            },
-            {
-              "riderId": "rider-1764874408874",
-              "dnf": "DNF",
-              "position": null,
-              "points": 0
+              "position": 20
             }
           ],
           "mountainClassification": [
             {
               "riderId": "rider-1764874895364",
-              "points": 20,
+              "points": 48,
               "position": 1
             },
             {
-              "riderId": "rider-1772128957743",
-              "points": 15,
+              "riderId": "rider-1764874527565",
+              "points": 33,
               "position": 2
+            },
+            {
+              "riderId": "rider-1781039902936",
+              "points": 31,
+              "position": 3
+            },
+            {
+              "riderId": "rider-1772128827854",
+              "points": 30,
+              "position": 4
+            },
+            {
+              "riderId": "rider-1772128957743",
+              "points": 17,
+              "position": 5
             },
             {
               "riderId": "rider-1764874902520",
               "points": 15,
-              "position": 3
-            },
-            {
-              "riderId": "rider-1764874527565",
-              "points": 15,
-              "position": 4
+              "position": 6
             },
             {
               "riderId": "rider-1764359593861",
               "points": 14,
-              "position": 5
+              "position": 7
             },
             {
-              "riderId": "rider-1772128827854",
-              "points": 14,
-              "position": 6
+              "riderId": "rider-1765479176573",
+              "points": 13,
+              "position": 8
             },
             {
               "riderId": "rider-1765479234257",
               "points": 12,
-              "position": 7
+              "position": 9
             },
             {
               "riderId": "rider-1764359574667",
               "points": 11,
-              "position": 8
-            },
-            {
-              "riderId": "rider-1781039902936",
-              "points": 10,
-              "position": 9
+              "position": 10
             },
             {
               "riderId": "rider-1772128989945",
               "points": 10,
-              "position": 10
+              "position": 11
+            },
+            {
+              "riderId": "rider-1764874611992",
+              "points": 9,
+              "position": 12
             },
             {
               "riderId": "rider-1764874685267",
               "points": 8,
-              "position": 11
+              "position": 13
+            },
+            {
+              "riderId": "rider-1764874768174",
+              "points": 7,
+              "position": 14
             },
             {
               "riderId": "rider-1781039889814",
               "points": 6,
-              "position": 12
-            },
-            {
-              "riderId": "rider-1764874768174",
-              "points": 3,
-              "position": 13
-            },
-            {
-              "riderId": "rider-1764874611992",
-              "points": 2,
-              "position": 14
+              "position": 15
             },
             {
               "riderId": "rider-1781039911360",
               "points": 2,
-              "position": 15
-            },
-            {
-              "riderId": "rider-1765479176573",
-              "points": 1,
               "position": 16
             },
             {
@@ -2687,42 +2854,40 @@
             },
             {
               "riderId": "rider-1764874408874",
-              "dnf": "DNF",
-              "position": null,
-              "points": 0
+              "points": 0,
+              "position": 20
             }
           ],
           "teamClassification": [
             {
-              "teamId": "team-1764359563963",
-              "totalTime": 852,
+              "teamId": "team-1764359680989",
+              "totalTime": 1416,
               "position": 1
             },
             {
               "teamId": "team-1764359670908",
-              "totalTime": 906,
+              "totalTime": 1728,
               "position": 2
             },
             {
-              "teamId": "team-1764359680989",
-              "totalTime": 1140,
+              "teamId": "team-1764359665627",
+              "totalTime": 1788,
               "position": 3
             },
             {
-              "teamId": "team-1764359665627",
-              "totalTime": 1374,
+              "teamId": "team-1764359563963",
+              "totalTime": 1866,
               "position": 4
             },
             {
               "teamId": "team-1764359620086",
-              "totalTime": 1854,
+              "totalTime": 2052,
               "position": 5
             }
           ],
           "yellowJerseyDays": {},
           "totalStages": 6,
-          "isComplete": false,
-          "country": "fr"
+          "isComplete": false
         }
       ],
       "riderStandings": [
@@ -2768,7 +2933,7 @@
         },
         {
           "riderId": "rider-1764874527565",
-          "worldTourPoints": 104,
+          "worldTourPoints": 119,
           "wins": 0
         },
         {
@@ -2803,7 +2968,7 @@
         },
         {
           "riderId": "rider-1764874611992",
-          "worldTourPoints": 4,
+          "worldTourPoints": 13,
           "wins": 0
         },
         {
@@ -2833,8 +2998,8 @@
         },
         {
           "riderId": "rider-1764874895364",
-          "worldTourPoints": 136,
-          "wins": 0
+          "worldTourPoints": 157,
+          "wins": 1
         },
         {
           "riderId": "rider-1764874902520",
@@ -2858,7 +3023,7 @@
         },
         {
           "riderId": "rider-1772128827854",
-          "worldTourPoints": 99,
+          "worldTourPoints": 106,
           "wins": 0
         },
         {
@@ -2918,7 +3083,7 @@
         },
         {
           "riderId": "rider-1781039902936",
-          "worldTourPoints": 0,
+          "worldTourPoints": 11,
           "wins": 0
         },
         {
@@ -2934,11 +3099,11 @@
         },
         {
           "teamId": "team-1764359620086",
-          "worldTourPoints": 386
+          "worldTourPoints": 408
         },
         {
           "teamId": "team-1764359665627",
-          "worldTourPoints": 377
+          "worldTourPoints": 397
         },
         {
           "teamId": "team-1764359670908",
@@ -2946,7 +3111,7 @@
         },
         {
           "teamId": "team-1764359680989",
-          "worldTourPoints": 551
+          "worldTourPoints": 572
         },
         {
           "teamId": "team-1764359815502",
